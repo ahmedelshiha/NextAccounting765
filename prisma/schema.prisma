@@ -340,6 +340,7 @@ model Tenant {
   user_workflows            user_workflows[]
   users                     users[]
   workflow_templates        workflow_templates[]
+  filter_presets            filter_presets[]
 
   @@index([status])
 }
