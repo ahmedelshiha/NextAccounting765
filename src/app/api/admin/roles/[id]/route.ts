@@ -105,6 +105,17 @@ export const PATCH = withTenantContext(async (req: Request, { params }: { params
       },
     })
 
+    // Emit real-time event for role update
+    try {
+      realtimeService.emitRoleUpdated(params.id, {
+        action: 'updated',
+        roleName: updated.name,
+        permissions: updated.permissions
+      })
+    } catch (err) {
+      console.error('Failed to emit role updated event:', err)
+    }
+
     // Log role update
     const changes: Record<string, any> = {}
     if (name) changes.name = { from: targetRole.name, to: name }
