@@ -193,8 +193,13 @@ export function WorkstationIntegrated({
       />
 
       <OperationsOverviewCards
-        stats={stats}
-        metricsData={metricsData}
+        metrics={{
+          totalUsers: (stats as any)?.total || users.length,
+          pendingApprovals: 0,
+          inProgressWorkflows: 0,
+          dueThisWeek: 0,
+        }}
+        isLoading={isLoading}
       />
 
       <div className="workstation-table-section flex-1 flex flex-col min-h-0">
