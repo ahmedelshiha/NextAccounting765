@@ -396,6 +396,34 @@
   color: var(--foreground);
 }
 
+.insights-stats-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  background: var(--muted);
+  border-radius: var(--radius-sm);
+  text-align: center;
+}
+
+.summary-label {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  font-weight: 500;
+}
+
+.summary-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
 .chart-placeholder,
 .actions-placeholder {
   display: flex;
