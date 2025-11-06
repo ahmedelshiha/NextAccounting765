@@ -1,67 +1,109 @@
 'use client'
 
-import { useQuery, useMutation, useQueryClient } from 'react-query'
+import useSWR, { useSWRConfig } from 'swr'
 import { getUsers, GetUsersParams, GetUsersResponse } from '../api/users'
 import { getStats, StatsResponse } from '../api/stats'
-import { applyBulkAction, previewBulkAction, undoBulkAction, BulkActionPayload, BulkActionResponse } from '../api/bulkActions'
+import { applyBulkAction, previewBulkAction, undoBulkAction, BulkActionPayload, BulkActionResponse, DryRunResponse } from '../api/bulkActions'
+import { useState, useCallback } from 'react'
+
+const fetcher = async (url: string) => {
+  const res = await fetch(url)
+  if (!res.ok) {
+    throw new Error('Failed to fetch')
+  }
+  return res.json()
+}
 
 /**
  * Hook to fetch users with caching and filtering
  *
  * @param params - Query parameters for filtering, sorting, pagination
- * @returns Query result with users data and loading/error states
+ * @returns SWR result with users data and loading/error states
  */
 export function useUsers(params: GetUsersParams = {}) {
-  return useQuery<GetUsersResponse, Error>(
-    ['users', params],
-    () => getUsers(params),
+  const query = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      query.append(key, String(value))
+    }
+  })
+  const url = `/api/admin/users${query.toString() ? `?${query.toString()}` : ''}`
+
+  const { data, error, isLoading, mutate } = useSWR<GetUsersResponse, Error>(
+    url,
+    fetcher,
     {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      cacheTime: 1000 * 60 * 10, // 10 minutes
-      retry: 2,
-      refetchOnWindowFocus: false
+      revalidateOnFocus: false,
+      dedupingInterval: 1000 * 60 * 5 // 5 minutes
     }
   )
+
+  return {
+    data,
+    error,
+    isLoading,
+    mutate
+  }
 }
 
 /**
  * Hook to fetch dashboard statistics
  *
- * @returns Query result with stats data and loading/error states
+ * @returns SWR result with stats data and loading/error states
  */
 export function useStats() {
-  return useQuery<StatsResponse, Error>(
-    ['stats'],
-    () => getStats(),
+  const { data, error, isLoading, mutate } = useSWR<StatsResponse, Error>(
+    '/api/admin/users/stats',
+    fetcher,
     {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      cacheTime: 1000 * 60 * 10, // 10 minutes
-      retry: 2,
-      refetchOnWindowFocus: false
+      revalidateOnFocus: false,
+      dedupingInterval: 1000 * 60 * 5 // 5 minutes
     }
   )
+
+  return {
+    data,
+    error,
+    isLoading,
+    mutate
+  }
 }
 
 /**
  * Hook to apply bulk actions
  *
- * Invalidates users cache after successful mutation
- *
- * @returns Mutation function and state
+ * @returns Function to apply bulk action and state
  */
 export function useBulkAction() {
-  const queryClient = useQueryClient()
+  const { mutate: mutateUsers } = useSWR('/api/admin/users')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
 
-  return useMutation<BulkActionResponse, Error, BulkActionPayload>(
-    (payload) => applyBulkAction(payload),
-    {
-      onSuccess: () => {
-        // Invalidate users cache to trigger refetch
-        queryClient.invalidateQueries('users')
-      },
-      retry: 1
-    }
+  const mutate = useCallback(
+    async (payload: BulkActionPayload) => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const result = await applyBulkAction(payload)
+        // Invalidate users cache
+        mutateUsers()
+        return result
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error('Unknown error')
+        setError(error)
+        throw error
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [mutateUsers]
   )
+
+  return {
+    mutate,
+    isLoading,
+    error
+  }
 }
 
 /**
@@ -69,12 +111,32 @@ export function useBulkAction() {
  *
  * Does not modify data, only previews changes
  *
- * @returns Mutation function and state
+ * @returns Function to preview bulk action and state
  */
 export function useBulkActionPreview() {
-  return useMutation((payload: BulkActionPayload) => previewBulkAction(payload), {
-    retry: 1
-  })
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
+
+  const mutate = useCallback(async (payload: BulkActionPayload) => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const result = await previewBulkAction(payload)
+      return result
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Unknown error')
+      setError(error)
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  return {
+    mutate,
+    isLoading,
+    error
+  }
 }
 
 /**
@@ -82,19 +144,36 @@ export function useBulkActionPreview() {
  *
  * Invalidates users cache after successful undo
  *
- * @returns Mutation function and state
+ * @returns Function to undo bulk action and state
  */
 export function useUndoBulkAction() {
-  const queryClient = useQueryClient()
+  const { mutate: mutateUsers } = useSWR('/api/admin/users')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
 
-  return useMutation<{ success: boolean }, Error, string>(
-    (operationId) => undoBulkAction(operationId),
-    {
-      onSuccess: () => {
-        // Invalidate users cache to trigger refetch
-        queryClient.invalidateQueries('users')
-      },
-      retry: 1
-    }
+  const mutate = useCallback(
+    async (operationId: string) => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const result = await undoBulkAction(operationId)
+        // Invalidate users cache
+        mutateUsers()
+        return result
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error('Unknown error')
+        setError(error)
+        throw error
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [mutateUsers]
   )
+
+  return {
+    mutate,
+    isLoading,
+    error
+  }
 }
