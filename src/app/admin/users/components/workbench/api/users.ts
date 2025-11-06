@@ -1,11 +1,11 @@
 /**
  * Users API wrapper
- * 
+ *
  * Provides functions to interact with the /api/admin/users endpoints.
  * Maintains backward compatibility with existing API contracts.
  */
 
-import { UserItem } from '../../contexts/UsersContextProvider'
+import { UserItem } from '../../../contexts/UsersContextProvider'
 
 export interface GetUsersParams {
   limit?: number
