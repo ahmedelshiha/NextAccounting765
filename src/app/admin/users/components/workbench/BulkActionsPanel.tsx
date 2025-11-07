@@ -31,17 +31,41 @@ export default function BulkActionsPanel({
   const [isApplying, setIsApplying] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
 
+  const handlePreview = () => {
+    setShowPreview(true)
+    console.log({
+      action: 'preview',
+      userIds: Array.from(selectedUserIds),
+      actionType,
+      actionValue
+    })
+  }
+
   const handleApply = async () => {
     setIsApplying(true)
     try {
-      // TODO: Implement bulk action API call
-      console.log({
-        userIds: Array.from(selectedUserIds),
-        action: actionType,
-        value: actionValue
+      // Bulk action API call
+      const response = await fetch('/api/admin/users/bulk-action', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userIds: Array.from(selectedUserIds),
+          action: actionType,
+          value: actionValue
+        })
       })
+
+      if (!response.ok) {
+        throw new Error('Failed to apply bulk action')
+      }
+
+      console.log('Bulk action applied successfully')
       // After successful application, clear selection
       onClear()
+    } catch (error) {
+      console.error('Error applying bulk action:', error)
     } finally {
       setIsApplying(false)
     }
