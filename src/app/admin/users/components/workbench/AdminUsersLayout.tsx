@@ -30,7 +30,7 @@ import '../styles/admin-users-layout.css'
  * │              │   │  UsersTable      │    │
  * │              │   │  (virtualized)   │    │
  * │              │   └──────────────────┘    │
- * ├──────────────┴──────────���───────��─────────┤
+ * ├──────────────┴──────────���─────────────────┤
  * │  Sticky Footer: BulkActionsPanel (if sel) │
  * └────────────────���────────────────────────────┘
  * 
@@ -44,7 +44,6 @@ export default function AdminUsersLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [filters, setFilters] = useState<Record<string, any>>({})
   const [showImportWizard, setShowImportWizard] = useState(false)
-  const [isExporting, setIsExporting] = useState(false)
   const isBuilderEnabled = useIsBuilderEnabled()
 
   const selectedCount = useMemo(() => selectedUserIds.size, [selectedUserIds.size])
