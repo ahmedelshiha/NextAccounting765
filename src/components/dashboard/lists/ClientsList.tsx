@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import useSWR from 'swr'
 import Link from 'next/link'
 import FilterBar from '@/components/dashboard/FilterBar'
@@ -7,6 +8,9 @@ import type { Column, FilterConfig } from '@/types/dashboard'
 import { apiFetch } from '@/lib/api'
 import { useTranslations } from '@/lib/i18n'
 import { hasRole } from '@/lib/permissions'
+import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+import { Button } from '@/components/ui/button'
 
 interface UserRow {
   id: string | number
