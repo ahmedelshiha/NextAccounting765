@@ -15,16 +15,16 @@ interface VirtualScrollerProps<T> {
 
 /**
  * ✅ Virtual Scroller Component
- * 
+ *
  * Renders only visible items instead of all items.
  * Perfect for lists with 100+ items.
- * 
+ *
  * Performance benefits:
  * - O(1) DOM elements instead of O(n)
  * - Can handle 10,000+ items smoothly
  * - Constant memory usage
  * - 60 FPS scrolling even on low-end devices
- * 
+ *
  * How it works:
  * 1. Calculate which items are visible in viewport
  * 2. Render only those items + overscan buffer
@@ -42,21 +42,46 @@ export function VirtualScroller<T>({
   getKey = (_, index) => index
 }: VirtualScrollerProps<T>) {
   const [scrollTop, setScrollTop] = useState(0)
+  const [containerHeight, setContainerHeight] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Measure container height on mount and window resize
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    const measureHeight = () => {
+      const height = container.clientHeight
+      if (height > 0) {
+        setContainerHeight(height)
+      }
+    }
+
+    // Initial measurement
+    measureHeight()
+
+    // Use ResizeObserver to track container size changes
+    const resizeObserver = new ResizeObserver(measureHeight)
+    resizeObserver.observe(container)
+
+    return () => {
+      resizeObserver.disconnect()
+    }
+  }, [])
 
   // Convert maxHeight to pixels
   const maxHeightPx = useMemo(() => {
     if (typeof maxHeight === 'number') {
       return maxHeight
     }
-    // If it's a percentage or contains %, get actual container height
-    if (maxHeight.includes('%')) {
-      if (!containerRef.current) return 600 // fallback
-      return containerRef.current.clientHeight || 600
+    // If it's a percentage, use measured container height
+    if (maxHeight.includes('%') && containerHeight > 0) {
+      return containerHeight
     }
     // Otherwise parse as pixel value (e.g., "300px" -> 300)
-    return parseInt(maxHeight.replace(/[^\d]/g, '')) || 600
-  }, [maxHeight, containerRef.current?.clientHeight])
+    const parsed = parseInt(maxHeight.replace(/[^\d]/g, ''))
+    return parsed > 0 ? parsed : containerHeight || 600
+  }, [maxHeight, containerHeight])
 
   // Calculate visible range
   const visibleCount = Math.ceil(maxHeightPx / itemHeight)
