@@ -133,7 +133,7 @@ Implement a minimal, Excel-style filter bar above the User Directory table that 
 ### Data Flow Diagram
 
 ```
-┌────────────────────────────────────��────┐
+┌─────────────────────────────────────────┐
 │   UsersTableWrapper (Main Container)    │
 ├────────────────────────���────────────────┤
 │                                         │
@@ -148,11 +148,11 @@ Implement a minimal, Excel-style filter bar above the User Directory table that 
 │            ↓                             │
 │  ┌─────────────────────────────────┐   │
 │  │ FilterState Hook (useFilterState)   │
-│  │  ├─ search: string              │   │
+│  │  ├─ search: string              ��   │
 │  │  ├─ role: string | null         │   │
 │  │  ├─ status: string | null       │   │
 │  │  └─ filteredUsers: UserItem[]   │   │
-│  └────────────────────────���────────┘   │
+│  └─────────────────────────────────┘   │
 │            ↓                             │
 │  ┌─────────────────���───────────────┐   │
 │  │ UsersTable (Virtualized)        │   │
@@ -995,6 +995,245 @@ export default function UsersTableWrapper({
    - Click Clear Filters
    - All filters reset
    - Shows "12 of 12 users"
+
+---
+
+## Phase 5: Enterprise Features (Optional)
+
+### Task 5.1: Multi-Select Filters
+**Effort:** 1 hour
+**Deliverable:** Allow selecting multiple roles AND multiple statuses
+
+**Enhancements:**
+```typescript
+// Instead of single role, allow multiple
+interface FilterState {
+  search: string
+  roles: string[]          // Array of selected roles
+  statuses: string[]       // Array of selected statuses
+  operators: 'AND' | 'OR'  // Combine with AND/OR
+}
+
+// Filter logic changes: user must match ANY selected role AND ANY selected status
+const filteredUsers = users.filter(user => {
+  const matchesRole = roles.length === 0 || roles.includes(user.role)
+  const matchesStatus = statuses.length === 0 || statuses.includes(user.status)
+  return matchesRole && matchesStatus
+})
+```
+
+**UI Changes:**
+- Convert dropdowns to multi-select with checkboxes
+- Show count badges (e.g., "Role: 2 selected")
+- Allow clearing individual selections within dropdown
+
+---
+
+### Task 5.2: Advanced Search Operators
+**Effort:** 1.5 hours
+**Deliverable:** Support search with operators (exact match, starts with, regex)
+
+**Feature:**
+```typescript
+interface SearchConfig {
+  operator: 'contains' | 'exactMatch' | 'startsWith' | 'regex'
+  caseSensitive: boolean
+  fields: ('name' | 'email' | 'phone')[]
+}
+
+// Usage: "=john" (exact match), "^john" (starts with), "john$" (ends with)
+// Default: "contains" (current behavior)
+```
+
+**Example Searches:**
+- `john` → Contains "john" (default)
+- `=john` → Exact match "john"
+- `^john` → Starts with "john"
+- `john$` → Ends with "john"
+- `john|jane` → Regex OR operator
+
+---
+
+### Task 5.3: Filter Pills/Badges Display
+**Effort:** 45 minutes
+**Deliverable:** Visual representation of active filters
+
+```tsx
+// Display active filters as removable pills
+<div className="flex flex-wrap gap-2 px-3 py-2 bg-blue-50 border-t border-blue-100">
+  {filters.search && (
+    <FilterPill label={`Search: ${filters.search}`} onRemove={() => clearSearch()} />
+  )}
+  {filters.roles.map(role => (
+    <FilterPill key={role} label={`Role: ${role}`} onRemove={() => removeRole(role)} />
+  ))}
+  {filters.statuses.map(status => (
+    <FilterPill key={status} label={`Status: ${status}`} onRemove={() => removeStatus(status)} />
+  ))}
+  {hasActiveFilters && (
+    <Button size="sm" onClick={clearAllFilters}>Clear All</Button>
+  )}
+</div>
+```
+
+---
+
+### Task 5.4: Export Filtered Results
+**Effort:** 1.5 hours
+**Deliverable:** Export selected or filtered users to CSV/Excel
+
+**Features:**
+- Export filtered results
+- Export selected rows only
+- Choose export format (CSV, Excel, PDF)
+- Include/exclude columns
+
+```typescript
+// Hook for export functionality
+export function useUserExport(users: UserItem[], filename = 'users') {
+  const exportCSV = () => {
+    const csv = convertToCSV(users)
+    downloadFile(csv, `${filename}.csv`, 'text/csv')
+  }
+
+  const exportExcel = () => {
+    const xlsx = convertToExcel(users)
+    downloadFile(xlsx, `${filename}.xlsx`, 'application/vnd.ms-excel')
+  }
+
+  return { exportCSV, exportExcel }
+}
+```
+
+---
+
+### Task 5.5: Filter History & Presets
+**Effort:** 2 hours
+**Deliverable:** Save and reuse filter combinations
+
+**Features:**
+- Show recent filters (last 5 used)
+- Save custom filter presets
+- Load preset with one click
+- Delete saved presets
+
+```typescript
+interface SavedFilterPreset {
+  id: string
+  name: string
+  description?: string
+  filters: FilterState
+  createdAt: Date
+  usageCount: number
+}
+
+// Usage in FilterBar
+<SavedFiltersDropdown
+  presets={userPresets}
+  onSelectPreset={loadPreset}
+  onSaveCurrentAsPreset={savePreset}
+  onDeletePreset={deletePreset}
+/>
+```
+
+---
+
+### Task 5.6: Column Visibility & Sorting
+**Effort:** 1 hour
+**Deliverable:** Show/hide columns and quick sort
+
+**Features:**
+- Toggle column visibility
+- Quick sort by clicking column header
+- Persist column preferences
+
+```tsx
+<ColumnVisibilityMenu
+  columns={['name', 'email', 'role', 'status', 'phone', 'dateJoined', 'lastLogin']}
+  visibleColumns={visibleColumns}
+  onToggleColumn={toggleColumn}
+/>
+```
+
+---
+
+### Task 5.7: Autocomplete Search Suggestions
+**Effort:** 1.5 hours
+**Deliverable:** Suggest values while typing
+
+**Features:**
+- Suggest existing names (as user types)
+- Suggest emails
+- Suggest phone numbers
+- Debounced suggestions
+
+```tsx
+<SearchInput
+  value={search}
+  onChange={handleSearchChange}
+  suggestions={useMemo(() =>
+    filteredSuggestions(search, users),
+    [search, users]
+  )}
+  onSelectSuggestion={applySuggestion}
+/>
+```
+
+---
+
+### Task 5.8: Advanced Query Builder
+**Effort:** 3 hours
+**Deliverable:** Visual interface for complex filters (optional for MVP)
+
+**Features:**
+- Add/remove filter groups
+- Combine with AND/OR
+- Nested conditions
+- Validation
+
+```tsx
+<AdvancedQueryBuilder
+  conditions={conditions}
+  onAddCondition={addCondition}
+  onRemoveCondition={removeCondition}
+  onChangeOperator={changeOperator}
+/>
+```
+
+**Example:**
+```
+(Role = Admin OR Role = TeamLead)
+AND (Status = Active)
+AND (CreatedDate >= 2024-01-01)
+```
+
+---
+
+## Implementation Roadmap
+
+```
+Phase 2 (MVP - Current)
+├─ Basic search
+├─ Simple dropdowns
+├─ Select All
+└─ Result counter
+
+Phase 2+ (Recommended for V1)
+├─ Multi-select filters
+├─ Advanced search operators  ← NEW
+├─ Filter pills/badges        ← NEW
+├─ Bulk actions panel
+├─ Column visibility toggle
+├─ Export options
+└─ Filter persistence
+
+Phase 3 (Advanced - Future)
+├─ Filter history
+├─ Save presets
+├─ Query builder
+├─ Autocomplete
+└─ Keyboard shortcuts
+```
 
 ---
 
