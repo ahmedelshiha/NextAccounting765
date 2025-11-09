@@ -16,7 +16,12 @@ export const revalidate = 30 // ISR: Revalidate every 30 seconds
 
 export const GET = withTenantContext(async (request: Request) => {
   const ctx = requireTenantContext()
-  const tenantId = ctx.tenantId ?? null
+  const tenantId = ctx.tenantId
+
+  if (!tenantId) {
+    return respond.badRequest('Tenant context is required')
+  }
+
   try {
     const ip = getClientIp(request as unknown as Request)
     const rl = await applyRateLimit(`admin-users-list:${ip}`, 240, 60_000)
