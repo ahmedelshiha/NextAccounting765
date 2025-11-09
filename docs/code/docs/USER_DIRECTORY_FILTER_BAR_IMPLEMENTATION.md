@@ -1,11 +1,37 @@
 # User Directory Filter Bar Implementation Plan
 
-**Status:** 📋 Ready for Implementation  
-**Priority:** 🔴 High  
-**Effort:** ~4-6 hours  
-**Timeline:** 1 session  
-**Created:** January 2025  
+**Status:** 📋 Ready for Implementation
+**Priority:** 🔴 High
+**Effort (MVP):** ~6 hours
+**Effort (MVP + Enterprise):** ~13 hours
+**Timeline:** 1-2 sessions
+**Created:** January 2025
 **Author:** Senior Full-Stack Developer
+
+---
+
+## 🎯 **Quick Decision Guide**
+
+**Choose MVP (6 hours)** if you want:
+- ✅ Basic search functionality
+- ✅ Simple role/status filters
+- ✅ Select All / multi-select rows
+- ✅ Result counter
+- ✅ Production-ready foundation
+
+**Choose MVP + Enterprise (13 hours)** if you want:
+- ✅ Everything above +
+- ✅ Multi-select filters (multiple roles/statuses at once)
+- ✅ Advanced search operators (exact match, starts with, etc.)
+- ✅ Visual filter pills/badges
+- ✅ Export to CSV/Excel
+- ✅ Column visibility toggle
+- ✅ Professional, enterprise-class UX (Oracle/SAP-inspired)
+- ✅ Bulk operations panel
+
+**Recommendation:** 🚀 **Implement MVP + Enterprise Features** (1.5-2 day sprint) for a production-ready, professional filter bar that matches modern enterprise standards.
+
+---
 
 ---
 
@@ -157,7 +183,7 @@ Implement a minimal, Excel-style filter bar above the User Directory table that 
 │ 👁 Columns   📥 Import   📤 Export   ⚙️ Advanced            │
 ├─────────────────────────────────────────────────────────────┤
 │ 3 selected • 6 of 12 users • Filtered ✓                    │
-└──────────────────────��──────────────────────────────────────┘
+└─────────────────────────────────────────────���───────────────┘
 ```
 
 **Enhancements:**
@@ -206,8 +232,8 @@ Implement a minimal, Excel-style filter bar above the User Directory table that 
 │                                         │
 │  ┌─────────────────────────────────┐   │
 │  │ UserDirectoryFilterBar          │   │
-��  │  ├─ SearchInput (debounced)     │   │
-│  │  ├─ RoleFilter (dropdown)       │   │
+│  │  ├─ SearchInput (debounced)     │   │
+│  │  ├��� RoleFilter (dropdown)       │   │
 │  │  ├─ StatusFilter (dropdown)     │   │
 │  │  ├─ SelectAllCheckbox           │   │
 │  │  └─ ClearFiltersButton          │   │
@@ -225,7 +251,7 @@ Implement a minimal, Excel-style filter bar above the User Directory table that 
 │  │ UsersTable (Virtualized)        │   │
 │  │  ├─ selectedUserIds: Set        │   │
 │  │  └─ onSelectAll()               │   │
-│  └─────────────���───────────────────┘   │
+│  └─────────────────────────────────┘   │
 │                                         │
 └─────────────────────────────────────────┘
 ```
