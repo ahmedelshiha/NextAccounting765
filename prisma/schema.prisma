@@ -97,6 +97,7 @@ model User {
   bulkOperationsApproved    BulkOperation[]         @relation("BulkOperationApprovedBy")
   bulkOperationResults      BulkOperationResult[]
   bulkOperationHistoryChanges BulkOperationHistory[] @relation("BulkOperationHistoryChangedBy")
+  reports                   Report[]
 
   @@unique([tenantId, email])
   @@index([tenantId, role])
