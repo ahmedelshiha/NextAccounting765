@@ -16,21 +16,35 @@ import { UserItem } from '../contexts/UserDataContext'
 /**
  * Hook for managing advanced query builder state and operations
  */
+// Helper function to create empty condition
+function createEmptyConditionHelper(): FilterCondition {
+  return {
+    id: uuidv4(),
+    field: 'name',
+    operator: 'contains',
+    value: ''
+  }
+}
+
+// Helper function to create empty group
+function createEmptyGroupHelper(operator: LogicalOperator = 'AND'): FilterGroup {
+  return {
+    id: uuidv4(),
+    conditions: [createEmptyConditionHelper()],
+    operator
+  }
+}
+
 export function useQueryBuilder(initialQuery?: FilterGroup | FilterCondition) {
   const [query, setQuery] = useState<FilterGroup | FilterCondition>(
-    initialQuery || createEmptyCondition()
+    initialQuery || createEmptyConditionHelper()
   )
   const [templates, setTemplates] = useState<QueryTemplate[]>(BUILT_IN_TEMPLATES)
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
 
   // Create a new empty condition
   const createEmptyCondition = useCallback((): FilterCondition => {
-    return {
-      id: uuidv4(),
-      field: 'name',
-      operator: 'contains',
-      value: ''
-    }
+    return createEmptyConditionHelper()
   }, [])
 
   // Create a new empty group
