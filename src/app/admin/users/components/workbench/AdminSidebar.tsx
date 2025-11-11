@@ -14,7 +14,6 @@ import RecentActivityFeed from '../RecentActivityFeed'
 import { useUsersContext } from '../../contexts/UsersContextProvider'
 
 interface AdminSidebarProps {
-  onFilterChange?: (filters: Record<string, any>) => void
   onClose?: () => void
 }
 
