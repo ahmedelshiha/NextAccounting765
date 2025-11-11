@@ -181,7 +181,8 @@
    ============================================================================ */
 
 @media (prefers-reduced-motion: reduce) {
-  .admin-workbench-sidebar {
+  .admin-workbench-content,
+  .admin-workbench-metrics {
     transition: none;
   }
 }
