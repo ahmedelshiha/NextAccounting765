@@ -236,7 +236,11 @@ export function sanitizePresets(presets: ServerFilterPreset[]): ServerFilterPres
         description: preset.description?.trim() || undefined
       }
     })
-    .filter((p): p is ServerFilterPreset => p !== null)
+    .filter((p): p is ServerFilterPreset => {
+      return p !== null &&
+        typeof p === 'object' &&
+        'id' in p && 'name' in p && 'filters' in p && 'createdAt' in p && 'updatedAt' in p
+    })
 }
 
 /**
