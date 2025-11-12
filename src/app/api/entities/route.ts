@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { withTenantContext } from "@/lib/api-wrapper";
+import { requireTenantContext } from "@/lib/tenant-utils";
 import { entityService } from "@/services/entities";
-import { tenantContext } from "@/lib/tenant-context";
 import { logger } from "@/lib/logger";
 import { z } from "zod";
 
@@ -32,17 +31,17 @@ const createEntitySchema = z.object({
  * GET /api/entities
  * List entities for current tenant
  */
-export async function GET(request: NextRequest) {
+const _api_GET = async (request: NextRequest) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const ctx = requireTenantContext();
+    const userId = ctx.userId;
+
+    if (!userId) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
-
-    const ctx = await tenantContext.getContext();
     const searchParams = request.nextUrl.searchParams;
 
     const filters = {
@@ -53,7 +52,7 @@ export async function GET(request: NextRequest) {
       take: searchParams.get("take") ? parseInt(searchParams.get("take")!) : 50,
     };
 
-    const entities = await entityService.listEntities(ctx.tenantId, filters);
+    const entities = await entityService.listEntities(ctx.tenantId!, filters);
 
     return NextResponse.json({
       success: true,
@@ -66,23 +65,24 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+};
 
 /**
  * POST /api/entities
  * Create new entity
  */
-export async function POST(request: NextRequest) {
+const _api_POST = async (request: NextRequest) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const ctx = requireTenantContext();
+    const userId = ctx.userId;
+
+    if (!userId) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
 
-    const ctx = await tenantContext.getContext();
     const body = await request.json();
 
     // Validate input
@@ -90,8 +90,8 @@ export async function POST(request: NextRequest) {
 
     // Create entity
     const entity = await entityService.createEntity(
-      ctx.tenantId,
-      session.user.id,
+      ctx.tenantId!,
+      userId,
       {
         ...input,
         fiscalYearStart: input.fiscalYearStart ? new Date(input.fiscalYearStart) : undefined,
@@ -124,4 +124,7 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+};
+
+export const GET = withTenantContext(_api_GET, { requireAuth: true });
+export const POST = withTenantContext(_api_POST, { requireAuth: true });

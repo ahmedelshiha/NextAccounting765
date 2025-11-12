@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { withTenantContext } from "@/lib/api-wrapper";
+import { requireTenantContext } from "@/lib/tenant-utils";
 import { entityService } from "@/services/entities";
-import { tenantContext } from "@/lib/tenant-context";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
@@ -29,17 +28,17 @@ const setupWizardSchema = z.object({
  * Idempotent entity setup endpoint from wizard
  * Returns entity_setup_id for tracking verification job
  */
-export async function POST(request: NextRequest) {
+const _api_POST = async (request: NextRequest) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const ctx = requireTenantContext();
+    const userId = ctx.userId;
+
+    if (!userId) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
-
-    const ctx = await tenantContext.getContext();
     const body = await request.json();
 
     // Validate input
@@ -49,7 +48,7 @@ export async function POST(request: NextRequest) {
     const existingKey = await prisma.idempotencyKey.findUnique({
       where: {
         tenantId_key: {
-          tenantId: ctx.tenantId,
+          tenantId: ctx.tenantId!,
           key: input.idempotencyKey,
         },
       },
@@ -69,8 +68,8 @@ export async function POST(request: NextRequest) {
 
     // Create entity with setup wizard data
     const entity = await entityService.createEntity(
-      ctx.tenantId,
-      session.user.id,
+      ctx.tenantId!,
+      userId,
       {
         country: input.country,
         name: input.businessName,
@@ -89,12 +88,12 @@ export async function POST(request: NextRequest) {
     // Record consent
     await prisma.consent.create({
       data: {
-        tenantId: ctx.tenantId,
+        tenantId: ctx.tenantId!,
         entityId: entity.id,
         type: "terms",
         version: input.consentVersion,
-        acceptedBy: session.user.id,
-        ip: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip"),
+        acceptedBy: userId,
+        ip: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || undefined,
         userAgent: request.headers.get("user-agent") || undefined,
       },
     });
@@ -108,9 +107,9 @@ export async function POST(request: NextRequest) {
     } else {
       await prisma.idempotencyKey.create({
         data: {
-          tenantId: ctx.tenantId,
+          tenantId: ctx.tenantId!,
           key: input.idempotencyKey,
-          userId: session.user.id,
+          userId: userId,
           entityType: "entity",
           entityId: entity.id,
           status: "PROCESSED",
@@ -121,8 +120,8 @@ export async function POST(request: NextRequest) {
     // Emit audit event
     await prisma.auditEvent.create({
       data: {
-        tenantId: ctx.tenantId,
-        userId: session.user.id,
+        tenantId: ctx.tenantId!,
+        userId: userId,
         type: "entity.setup.requested",
         resource: "entity",
         details: {
@@ -165,4 +164,6 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+};
+
+export const POST = withTenantContext(_api_POST, { requireAuth: true });

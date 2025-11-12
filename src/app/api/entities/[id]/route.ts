@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { withTenantContext } from "@/lib/api-wrapper";
+import { requireTenantContext } from "@/lib/tenant-utils";
 import { entityService } from "@/services/entities";
-import { tenantContext } from "@/lib/tenant-context";
 import { logger } from "@/lib/logger";
 import { z } from "zod";
 
@@ -18,21 +17,22 @@ const updateEntitySchema = z.object({
  * GET /api/entities/[id]
  * Get entity details
  */
-export async function GET(
+const _api_GET = async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const ctx = requireTenantContext();
+    const userId = ctx.userId;
+
+    if (!userId) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
 
-    const ctx = await tenantContext.getContext();
-    const entity = await entityService.getEntity(ctx.tenantId, params.id);
+    const entity = await entityService.getEntity(ctx.tenantId!, params.id);
 
     return NextResponse.json({
       success: true,
@@ -52,26 +52,27 @@ export async function GET(
       { status: 500 }
     );
   }
-}
+};
 
 /**
  * PATCH /api/entities/[id]
  * Update entity
  */
-export async function PATCH(
+const _api_PATCH = async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const ctx = requireTenantContext();
+    const userId = ctx.userId;
+
+    if (!userId) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
 
-    const ctx = await tenantContext.getContext();
     const body = await request.json();
 
     // Validate input
@@ -79,9 +80,9 @@ export async function PATCH(
 
     // Update entity
     const entity = await entityService.updateEntity(
-      ctx.tenantId,
+      ctx.tenantId!,
       params.id,
-      session.user.id,
+      userId,
       input
     );
 
@@ -114,35 +115,36 @@ export async function PATCH(
       { status: 500 }
     );
   }
-}
+};
 
 /**
  * DELETE /api/entities/[id]
  * Archive or delete entity
  */
-export async function DELETE(
+const _api_DELETE = async (
   request: NextRequest,
   { params }: { params: { id: string } }
-) {
+) => {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const ctx = requireTenantContext();
+    const userId = ctx.userId;
+
+    if (!userId) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
 
-    const ctx = await tenantContext.getContext();
     const searchParams = request.nextUrl.searchParams;
     const permanent = searchParams.get("permanent") === "true";
 
     if (permanent) {
       // Hard delete (requires archived status)
-      await entityService.deleteEntity(ctx.tenantId, params.id, session.user.id);
+      await entityService.deleteEntity(ctx.tenantId!, params.id, userId);
     } else {
       // Soft delete (archive)
-      await entityService.archiveEntity(ctx.tenantId, params.id, session.user.id);
+      await entityService.archiveEntity(ctx.tenantId!, params.id, userId);
     }
 
     logger.info("Entity deleted/archived successfully", {
@@ -168,4 +170,8 @@ export async function DELETE(
       { status: 500 }
     );
   }
-}
+};
+
+export const GET = withTenantContext(_api_GET, { requireAuth: true });
+export const PATCH = withTenantContext(_api_PATCH, { requireAuth: true });
+export const DELETE = withTenantContext(_api_DELETE, { requireAuth: true });
