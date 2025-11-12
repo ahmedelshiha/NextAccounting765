@@ -11,10 +11,16 @@ import { ExportButton } from './ExportButton'
 import { SearchSuggestionsDropdown } from './SearchSuggestionsDropdown'
 import { FilterPresetsMenu } from './FilterPresetsMenu'
 import { QuickFilterButtons, createDefaultQuickFilters } from './QuickFilterButtons'
+import { AdvancedQueryBuilder } from './AdvancedQueryBuilder'
+import { QueryTemplateManager } from './QueryTemplateManager'
 import { useSearchSuggestions } from '../hooks/useSearchSuggestions'
 import { useFilterPresets } from '../hooks/useFilterPresets'
+import { useQueryBuilder } from '../hooks/useQueryBuilder'
+import { useFilterHistory } from '../hooks/useFilterHistory'
+import { FilterHistoryPanel } from './FilterHistoryPanel'
 import { FilterState } from '../hooks/useFilterState'
 import { UserItem } from '../contexts/UserDataContext'
+import { FilterGroup, FilterCondition } from '../types/query-builder'
 
 export interface UserDirectoryFilterBarEnhancedProps {
   filters: FilterState
@@ -81,6 +87,7 @@ export function UserDirectoryFilterBarEnhanced({
 }: UserDirectoryFilterBarEnhancedProps) {
   const [suggestionsOpen, setSuggestionsOpen] = useState(false)
   const [presetsOpen, setPresetsOpen] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
 
   const { suggestions, isLoading } = useSearchSuggestions(
     allUsers,
@@ -97,7 +104,10 @@ export function UserDirectoryFilterBarEnhanced({
     getAllPresets
   } = useFilterPresets()
 
+  const queryBuilder = useQueryBuilder()
   const quickFilters = useMemo(() => createDefaultQuickFilters(), [])
+
+  const filterHistory = useFilterHistory()
 
   const hasActiveFilters = !!(
     filters.search ||
@@ -109,27 +119,58 @@ export function UserDirectoryFilterBarEnhanced({
 
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
-    onFiltersChange({ ...filters, search: value })
+    const next: FilterState = { ...filters, search: value, roles: filters.roles || [], statuses: filters.statuses || [] }
+    onFiltersChange(next)
     setSuggestionsOpen(!!value)
-  }, [filters, onFiltersChange])
+    filterHistory.addEntry(next)
+  }, [filters, onFiltersChange, filterHistory])
 
   const handleSuggestionSelect = useCallback((suggestion: any) => {
-    onFiltersChange({ ...filters, search: suggestion.text })
+    const next: FilterState = { ...filters, search: suggestion.text, roles: filters.roles || [], statuses: filters.statuses || [] }
+    onFiltersChange(next)
     setSuggestionsOpen(false)
   }, [filters, onFiltersChange])
 
   const handleLoadPreset = useCallback((preset: any) => {
     onFiltersChange(preset.filters)
+    filterHistory.addEntry(preset.filters)
     setPresetsOpen(false)
-  }, [onFiltersChange])
+  }, [onFiltersChange, filterHistory])
 
   const handleCreatePreset = useCallback((name: string, filterState: FilterState, description?: string) => {
     createPreset(name, filterState, description)
-  }, [createPreset])
+    filterHistory.addEntry(filterState)
+  }, [createPreset, filterHistory])
 
   const handleApplyQuickFilter = useCallback((filterState: FilterState) => {
     onFiltersChange(filterState)
-  }, [onFiltersChange])
+    filterHistory.addEntry(filterState)
+  }, [onFiltersChange, filterHistory])
+
+  const handleApplyAdvancedQuery = useCallback((query: FilterGroup | FilterCondition) => {
+    // Set the query in the builder for consistency
+    queryBuilder.setQuery(query)
+
+    // Store the advanced query directly in filter state
+    // This way the full complexity of the query is preserved
+    const newFilters: FilterState = {
+      search: filters.search || '',
+      roles: filters.roles || [],
+      statuses: filters.statuses || [],
+      advancedQuery: query
+    }
+
+    // Update the filters to trigger re-render with results
+    onFiltersChange(newFilters)
+    filterHistory.addEntry(newFilters)
+  }, [queryBuilder, filters, onFiltersChange, filterHistory])
+
+  const handleLoadTemplate = useCallback((template: any) => {
+    if (template.query) {
+      queryBuilder.setQuery(template.query)
+      handleApplyAdvancedQuery(template.query)
+    }
+  }, [queryBuilder, handleApplyAdvancedQuery])
 
   const handleSelectAllChange = useCallback((checked: boolean) => {
     onSelectAll(checked)
@@ -151,15 +192,16 @@ export function UserDirectoryFilterBarEnhanced({
   }, [filters.statuses, statusOptions])
 
   return (
-    <div className="sticky top-0 z-20 bg-white border-b border-gray-200">
+    <>
+      <div className="sticky top-0 z-20 bg-white border-b border-gray-200">
       {/* Main filter row */}
       <div
-        className="grid grid-cols-[40px_minmax(180px,2fr)_1fr_1fr_auto_auto] gap-3 p-3 items-center"
+        className="flex items-center gap-3 p-3 overflow-x-auto"
         role="toolbar"
         aria-label="User directory filters"
       >
         {/* Select All Checkbox */}
-        <div className="flex items-center justify-center">
+        <div className="flex items-center justify-center flex-shrink-0">
           <Checkbox
             checked={allFiltered && selectedCount > 0}
             onCheckedChange={handleSelectAllChange}
@@ -169,7 +211,7 @@ export function UserDirectoryFilterBarEnhanced({
         </div>
 
         {/* Search Input */}
-        <div className="relative">
+        <div className="relative flex-shrink-0" style={{ minWidth: '200px', maxWidth: '300px' }}>
           <Input
             type="text"
             placeholder="Search name, email, phone..."
@@ -201,71 +243,107 @@ export function UserDirectoryFilterBarEnhanced({
         </div>
 
         {/* Multi-select role filter */}
-        <FilterMultiSelect
-          label="Roles"
-          placeholder="All Roles"
-          options={roleOptions}
-          selectedValues={filters.roles || []}
-          onToggle={onToggleRole || (() => {})}
-          onClear={onClearRoles || (() => {})}
-          ariaLabel="Filter by roles (multi-select)"
-        />
+        <div className="flex-shrink-0">
+          <FilterMultiSelect
+            label="Roles"
+            placeholder="All Roles"
+            options={roleOptions}
+            selectedValues={filters.roles || []}
+            onToggle={onToggleRole || (() => {})}
+            onClear={onClearRoles || (() => {})}
+            ariaLabel="Filter by roles (multi-select)"
+          />
+        </div>
 
         {/* Multi-select status filter */}
-        <FilterMultiSelect
-          label="Status"
-          placeholder="All Statuses"
-          options={statusOptions}
-          selectedValues={filters.statuses || []}
-          onToggle={onToggleStatus || (() => {})}
-          onClear={onClearStatuses || (() => {})}
-          ariaLabel="Filter by status (multi-select)"
-        />
+        <div className="flex-shrink-0">
+          <FilterMultiSelect
+            label="Status"
+            placeholder="All Statuses"
+            options={statusOptions}
+            selectedValues={filters.statuses || []}
+            onToggle={onToggleStatus || (() => {})}
+            onClear={onClearStatuses || (() => {})}
+            ariaLabel="Filter by status (multi-select)"
+          />
+        </div>
 
         {/* Presets Button */}
         {showPresets && presetsLoaded && (
-          <Button
-            onClick={() => setPresetsOpen(!presetsOpen)}
-            variant={presetsOpen ? 'default' : 'outline'}
-            size="sm"
-            className="text-xs"
-            aria-label="Manage filter presets"
-            title="Save and load filter presets"
-          >
-            <Bookmark className="w-3 h-3 mr-1" />
-            Presets
-            {presets.length > 0 && (
-              <span className="ml-1.5 inline-flex items-center px-1.5 py-0 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
-                {presets.length}
-              </span>
-            )}
-          </Button>
+          <div className="flex-shrink-0">
+            <Button
+              onClick={() => setPresetsOpen(!presetsOpen)}
+              variant={presetsOpen ? 'default' : 'outline'}
+              size="sm"
+              className="text-xs whitespace-nowrap"
+              aria-label="Manage filter presets"
+              title="Save and load filter presets"
+            >
+              <Bookmark className="w-3 h-3 mr-1" />
+              Presets
+              {presets.length > 0 && (
+                <span className="ml-1.5 inline-flex items-center px-1.5 py-0 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                  {presets.length}
+                </span>
+              )}
+            </Button>
+          </div>
         )}
+
+        {/* History Button */}
+        <div className="flex-shrink-0">
+          <Button
+            onClick={() => setHistoryOpen(!historyOpen)}
+            variant={historyOpen ? 'default' : 'outline'}
+            size="sm"
+            className="text-xs whitespace-nowrap"
+            aria-label="View filter history"
+            title="View recent filters"
+          >
+            {/* Using SVG to avoid additional imports to keep bundle minimal */}
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 mr-1"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-5h-2"/><path d="M12 7v5l3 2"/></svg>
+            History
+          </Button>
+        </div>
 
         {/* Export Button */}
         {showExport && (
-          <ExportButton
-            users={filteredUsers.length > 0 ? filteredUsers : allUsers}
-            selectedUserIds={selectedUserIds}
-            filteredCount={filteredCount}
-            totalCount={totalCount}
-            variant="outline"
-            size="sm"
-          />
+          <div className="flex-shrink-0">
+            <ExportButton
+              users={filteredUsers.length > 0 ? filteredUsers : allUsers}
+              selectedUserIds={selectedUserIds}
+              filteredCount={filteredCount}
+              totalCount={totalCount}
+              variant="outline"
+              size="sm"
+            />
+          </div>
         )}
+
+        {/* Query Actions Group: Advanced Query Builder + Template Manager */}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <AdvancedQueryBuilder
+            onApplyQuery={handleApplyAdvancedQuery}
+          />
+          <QueryTemplateManager
+            onLoadTemplate={handleLoadTemplate}
+          />
+        </div>
 
         {/* Clear Filters Button */}
         {hasActiveFilters && (
-          <Button
-            onClick={onClearFilters}
-            variant="outline"
-            size="sm"
-            className="text-xs"
-            aria-label="Clear all filters"
-          >
-            <X className="w-3 h-3 mr-1" />
-            Clear
-          </Button>
+          <div className="flex-shrink-0">
+            <Button
+              onClick={onClearFilters}
+              variant="outline"
+              size="sm"
+              className="text-xs whitespace-nowrap"
+              aria-label="Clear all filters"
+            >
+              <X className="w-3 h-3 mr-1" />
+              Clear
+            </Button>
+          </div>
         )}
       </div>
 
@@ -307,7 +385,9 @@ export function UserDirectoryFilterBarEnhanced({
         </span>
       </div>
 
-      {/* Filter Presets Menu */}
+      </div>
+
+      {/* Filter Presets Menu - rendered outside sticky container to avoid z-index stacking context issues */}
       {showPresets && presetsLoaded && (
         <FilterPresetsMenu
           presets={getAllPresets()}
@@ -320,6 +400,17 @@ export function UserDirectoryFilterBarEnhanced({
           currentFilters={filters}
         />
       )}
-    </div>
+
+      {/* Filter History Panel - rendered outside sticky container to avoid z-index stacking context issues */}
+      <FilterHistoryPanel
+        isOpen={historyOpen}
+        onOpenChange={setHistoryOpen}
+        history={filterHistory.history}
+        onReapply={(f) => { const next: FilterState = { search: f.search || '', roles: f.roles || [], statuses: f.statuses || [] }; onFiltersChange(next); filterHistory.addEntry(next); setHistoryOpen(false) }}
+        onClearHistory={() => filterHistory.clearHistory()}
+        onExportHistory={() => filterHistory.exportHistory()}
+        helpers={{ relativeTime: filterHistory.helpers.relativeTime, describeFilters: filterHistory.helpers.describeFilters }}
+      />
+    </>
   )
 }
