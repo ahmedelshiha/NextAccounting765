@@ -109,6 +109,8 @@ model User {
   supportTicketsCreated     SupportTicket[]       @relation("SupportTicketsCreated")
   supportTicketsAssigned    SupportTicket[]       @relation("SupportTicketsAssigned")
   supportTicketComments     SupportTicketComment[]  @relation("SupportTicketComments")
+  knowledgeBaseArticles     KnowledgeBaseArticle[] @relation("KnowledgeBaseArticles")
+  paymentMethods            UserPaymentMethod[]    @relation("UserPaymentMethods")
 
   @@unique([tenantId, email])
   @@index([tenantId, role])
@@ -340,6 +342,11 @@ model Tenant {
   documentLinks         DocumentLink[]
   documentAuditLogs     DocumentAuditLog[]
   supportTickets        SupportTicket[]           @relation("SupportTickets")
+  knowledgeBaseCategories KnowledgeBaseCategory[]   @relation("KnowledgeBaseCategories")
+  knowledgeBaseArticles KnowledgeBaseArticle[]      @relation("KnowledgeBaseArticles")
+  userPaymentMethods    UserPaymentMethod[]        @relation("UserPaymentMethods")
+  bankingConnections    BankingConnection[]        @relation("BankingConnections")
+  bankingTransactions   BankingTransaction[]       @relation("BankingTransactions")
 
   @@index([status])
 }
@@ -1171,6 +1178,92 @@ model NotificationTemplate {
   @@map("notification_templates")
 }
 
+model UserPaymentMethod {
+  id                String    @id @default(cuid())
+  userId            String
+  tenantId          String
+  paymentMethodId   String    @unique // Stripe payment method ID
+  type              String    // 'card', 'bank_account', 'wallet'
+  isDefault         Boolean   @default(false)
+  status            String    @default("ACTIVE") // 'ACTIVE', 'INACTIVE', 'EXPIRED'
+  last4             String?   // Last 4 digits for display
+  brand             String?   // Card brand: visa, mastercard, etc.
+  expiryMonth       Int?
+  expiryYear        Int?
+  fingerprint       String?   // For deduplication
+  billingDetails    Json?     // Encrypted billing address
+  metadata          Json?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user              User      @relation("UserPaymentMethods", fields: [userId], references: [id], onDelete: Cascade)
+  tenant            Tenant    @relation("UserPaymentMethods", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, paymentMethodId])
+  @@index([userId])
+  @@index([tenantId])
+  @@index([isDefault])
+  @@index([status])
+  @@map("user_payment_methods")
+}
+
+model BankingConnection {
+  id                String    @id @default(cuid())
+  tenantId          String
+  entityId          String?   // Entity this account is linked to
+  provider          String    // 'plaid', 'uae', 'ksa', 'csv'
+  accountNumber     String
+  bankName          String
+  accountType       String    // 'checking', 'savings', 'business'
+  status            String    @default("ACTIVE") // 'ACTIVE', 'INACTIVE', 'ERROR'
+  lastSyncAt        DateTime?
+  lastSyncError     String?
+  sessionToken      String?   // Encrypted session token from provider
+  syncFrequency     String    @default("DAILY") // 'DAILY', 'WEEKLY', 'MONTHLY', 'MANUAL'
+  credentials       Json?     // Encrypted credentials for CSV/manual
+  metadata          Json?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  tenant            Tenant    @relation("BankingConnections", fields: [tenantId], references: [id], onDelete: Cascade)
+  transactions      BankingTransaction[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([lastSyncAt])
+  @@map("banking_connections")
+}
+
+model BankingTransaction {
+  id                String    @id @default(cuid())
+  connectionId      String
+  tenantId          String
+  externalId        String?   // ID from bank
+  date              DateTime
+  description       String
+  amount            Decimal   @db.Decimal(19, 4)
+  currency          String    @default("AED")
+  type              String    // 'debit', 'credit'
+  balance           Decimal?  @db.Decimal(19, 4)
+  reference         String?
+  tags              String[]
+  matched           Boolean   @default(false) // Matched to invoice/expense
+  matchedToId       String?   // ID of matched invoice/expense
+  matchedToType     String?   // 'invoice', 'expense', 'bill'
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  connection        BankingConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  tenant            Tenant    @relation("BankingTransactions", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, externalId])
+  @@index([tenantId])
+  @@index([connectionId])
+  @@index([date])
+  @@index([matched])
+  @@map("banking_transactions")
+}
+
 model Invoice {
   id         String        @id @default(cuid())
   tenantId   String
@@ -1928,6 +2021,62 @@ model SupportTicketStatusHistory {
   @@index([ticketId])
   @@index([changedAt])
   @@map("support_ticket_status_history")
+}
+
+model KnowledgeBaseCategory {
+  id                    String                    @id @default(cuid())
+  tenantId              String
+  name                  String                    @db.VarChar(255)
+  slug                  String                    @db.VarChar(255)
+  description           String?                   @db.Text
+  icon                  String?                   @db.VarChar(50)
+  order                  Int                       @default(0)
+  published             Boolean                   @default(true)
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+
+  tenant                Tenant                    @relation("KnowledgeBaseCategories", fields: [tenantId], references: [id], onDelete: Cascade)
+  articles              KnowledgeBaseArticle[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+  @@index([published])
+  @@map("knowledge_base_categories")
+}
+
+model KnowledgeBaseArticle {
+  id                    String                    @id @default(cuid())
+  tenantId              String
+  categoryId            String
+  title                 String                    @db.VarChar(500)
+  slug                  String                    @db.VarChar(500)
+  content               String                    @db.Text
+  excerpt               String?                   @db.VarChar(1000)
+  authorId              String
+  published             Boolean                   @default(false)
+  featured              Boolean                   @default(false)
+  viewCount             Int                       @default(0)
+  helpfulCount          Int                       @default(0)
+  notHelpfulCount       Int                       @default(0)
+  tags                  String[]
+  relatedArticleIds     String[]
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+  publishedAt           DateTime?
+
+  tenant                Tenant                    @relation("KnowledgeBaseArticles", fields: [tenantId], references: [id], onDelete: Cascade)
+  category              KnowledgeBaseCategory     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  author                User                      @relation("KnowledgeBaseArticles", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+  @@index([categoryId])
+  @@index([authorId])
+  @@index([published])
+  @@index([featured])
+  @@index([tags])
+  @@index([createdAt])
+  @@map("knowledge_base_articles")
 }
 
 enum TaskPriority {
