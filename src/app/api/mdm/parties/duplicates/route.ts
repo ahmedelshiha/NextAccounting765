@@ -5,7 +5,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { withTenantContext } from '@/lib/api-wrapper';
+import { tenantContext } from '@/lib/tenant-context';
 import { prisma } from '@/lib/prisma';
 import MDMService from '@/lib/mdm/mdm-service';
 import { logger } from '@/lib/logger';
@@ -27,31 +28,15 @@ const MergePartiesSchema = z.object({
   mergeReason: z.string().optional(),
 });
 
-const UnmergeSchema = z.object({
-  mergeLogId: z.string(),
-  unmergeReason: z.string().optional(),
-});
+
 
 // ============================================================================
 // POST /api/mdm/parties/duplicates/find - Find duplicate parties
 // ============================================================================
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
-    const session = await getServerSession();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Get tenant from user
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { tenantId: true },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+    const ctx = tenantContext.getContext();
 
     // Parse and validate request body
     const body = await request.json();
@@ -62,13 +47,13 @@ export async function POST(request: NextRequest) {
 
     // Find duplicates
     const duplicates = await mdm.findPartyDuplicates(
-      user.tenantId,
+      ctx.tenantId!,
       partyId,
       threshold
     );
 
     logger.info('Duplicate detection completed', {
-      tenantId: user.tenantId,
+      tenantId: ctx.tenantId,
       partyId,
       matchCount: duplicates.length,
     });
@@ -97,3 +82,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withTenantContext(handlePOST, { requireAuth: true });

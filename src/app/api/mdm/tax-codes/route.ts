@@ -8,7 +8,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { withTenantContext } from '@/lib/api-wrapper';
+import { tenantContext } from '@/lib/tenant-context';
 import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 import { z } from 'zod';
@@ -57,22 +58,9 @@ const ListTaxCodesSchema = z.object({
 // GET /api/mdm/tax-codes - List tax codes
 // ============================================================================
 
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
   try {
-    const session = await getServerSession();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Get tenant from user
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { tenantId: true },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+    const ctx = tenantContext.getContext();
 
     // Parse query parameters
     const searchParams = request.nextUrl.searchParams;
@@ -86,7 +74,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Build query
-    const where: any = { tenantId: user.tenantId };
+    const where: any = { tenantId: ctx.tenantId };
     if (params.taxType) where.taxType = params.taxType;
     if (params.country) where.country = params.country;
     if (params.status) where.status = params.status;
@@ -131,22 +119,9 @@ export async function GET(request: NextRequest) {
 // POST /api/mdm/tax-codes - Create tax code
 // ============================================================================
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
-    const session = await getServerSession();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Get tenant from user
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { tenantId: true, id: true },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+    const ctx = tenantContext.getContext();
 
     // Parse and validate request body
     const body = await request.json();
@@ -155,7 +130,7 @@ export async function POST(request: NextRequest) {
     // Check for duplicate tax code
     const existing = await prisma.taxCode.findFirst({
       where: {
-        tenantId: user.tenantId,
+        tenantId: ctx.tenantId,
         taxCodeValue: data.taxCodeValue,
         country: data.country,
       },
@@ -171,17 +146,17 @@ export async function POST(request: NextRequest) {
     // Create tax code
     const taxCode = await prisma.taxCode.create({
       data: {
-        tenantId: user.tenantId,
+        tenantId: ctx.tenantId,
         ...data,
         effectiveFrom: new Date(data.effectiveFrom),
         effectiveTo: data.effectiveTo ? new Date(data.effectiveTo) : null,
-        createdBy: user.id,
-        updatedBy: user.id,
+        createdBy: ctx.userId,
+        updatedBy: ctx.userId,
       },
     });
 
     logger.info('Tax code created', {
-      tenantId: user.tenantId,
+      tenantId: ctx.tenantId,
       taxCodeId: taxCode.id,
       taxCodeValue: taxCode.taxCodeValue,
     });
@@ -208,3 +183,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const GET = withTenantContext(handleGET, { requireAuth: true });
+export const POST = withTenantContext(handlePOST, { requireAuth: true });

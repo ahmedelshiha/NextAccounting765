@@ -9,7 +9,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { withTenantContext } from '@/lib/api-wrapper';
+import { tenantContext } from '@/lib/tenant-context';
 import { prisma } from '@/lib/prisma';
 import MDMService from '@/lib/mdm/mdm-service';
 import { logger } from '@/lib/logger';
@@ -58,23 +59,10 @@ const MergePartiesSchema = z.object({
 // GET /api/mdm/parties - List parties
 // ============================================================================
 
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
   try {
-    const session = await getServerSession();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Get tenant from user
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { tenantId: true },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
+    const ctx = tenantContext.getContext();
+    
     // Parse query parameters
     const searchParams = request.nextUrl.searchParams;
     const params = ListPartiesSchema.parse({
@@ -86,7 +74,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Build query
-    const where: any = { tenantId: user.tenantId };
+    const where: any = { tenantId: ctx.tenantId };
     if (params.partyType) where.partyType = params.partyType;
     if (params.status) where.status = params.status;
     if (params.search) {
@@ -94,7 +82,6 @@ export async function GET(request: NextRequest) {
         { name: { contains: params.search, mode: 'insensitive' } },
         { registrationNumber: { contains: params.search, mode: 'insensitive' } },
         { taxId: { contains: params.search, mode: 'insensitive' } },
-        { email: { contains: params.search, mode: 'insensitive' } },
       ];
     }
 
@@ -132,41 +119,25 @@ export async function GET(request: NextRequest) {
 // POST /api/mdm/parties - Create party
 // ============================================================================
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
-    const session = await getServerSession();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Get tenant from user
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { tenantId: true, id: true },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+    const ctx = tenantContext.getContext();
 
     // Parse and validate request body
     const body = await request.json();
     const data = CreatePartySchema.parse(body);
 
-    // Check for duplicates
+    // Check for duplicate party
     const existing = await prisma.party.findFirst({
       where: {
-        tenantId: user.tenantId,
-        OR: [
-          data.registrationNumber && { registrationNumber: data.registrationNumber },
-          data.taxId && { taxId: data.taxId },
-        ].filter(Boolean),
+        tenantId: ctx.tenantId,
+        registrationNumber: data.registrationNumber,
       },
     });
 
     if (existing) {
       return NextResponse.json(
-        { error: 'Party with this registration number or tax ID already exists' },
+        { error: 'Party with this registration number already exists' },
         { status: 409 }
       );
     }
@@ -174,19 +145,15 @@ export async function POST(request: NextRequest) {
     // Create party
     const party = await prisma.party.create({
       data: {
-        tenantId: user.tenantId,
+        tenantId: ctx.tenantId,
         ...data,
-        createdBy: user.id,
-        updatedBy: user.id,
+        createdBy: ctx.userId,
+        updatedBy: ctx.userId,
       },
     });
 
-    // Calculate initial quality score
-    const mdm = new MDMService(prisma);
-    await mdm.calculatePartyQualityScore(user.tenantId, party.id);
-
     logger.info('Party created', {
-      tenantId: user.tenantId,
+      tenantId: ctx.tenantId,
       partyId: party.id,
       partyType: party.partyType,
     });
@@ -213,3 +180,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const GET = withTenantContext(handleGET, { requireAuth: true });
+export const POST = withTenantContext(handlePOST, { requireAuth: true });

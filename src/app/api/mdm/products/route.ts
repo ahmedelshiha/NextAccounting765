@@ -9,7 +9,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { withTenantContext } from '@/lib/api-wrapper';
+import { tenantContext } from '@/lib/tenant-context';
 import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 import { z } from 'zod';
@@ -46,22 +47,9 @@ const ListProductsSchema = z.object({
 // GET /api/mdm/products - List products
 // ============================================================================
 
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
   try {
-    const session = await getServerSession();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Get tenant from user
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { tenantId: true },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+    const ctx = tenantContext.getContext();
 
     // Parse query parameters
     const searchParams = request.nextUrl.searchParams;
@@ -75,7 +63,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Build query
-    const where: any = { tenantId: user.tenantId };
+    const where: any = { tenantId: ctx.tenantId };
     if (params.productType) where.productType = params.productType;
     if (params.status) where.status = params.status;
     if (params.category) where.category = params.category;
@@ -122,22 +110,9 @@ export async function GET(request: NextRequest) {
 // POST /api/mdm/products - Create product
 // ============================================================================
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
-    const session = await getServerSession();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Get tenant from user
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { tenantId: true, id: true },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+    const ctx = tenantContext.getContext();
 
     // Parse and validate request body
     const body = await request.json();
@@ -146,7 +121,7 @@ export async function POST(request: NextRequest) {
     // Check for duplicate product code
     const existing = await prisma.product.findFirst({
       where: {
-        tenantId: user.tenantId,
+        tenantId: ctx.tenantId,
         productCode: data.productCode,
       },
     });
@@ -164,7 +139,7 @@ export async function POST(request: NextRequest) {
         where: { id: data.taxCodeId },
       });
 
-      if (!taxCode || taxCode.tenantId !== user.tenantId) {
+      if (!taxCode || taxCode.tenantId !== ctx.tenantId) {
         return NextResponse.json(
           { error: 'Tax code not found or unauthorized' },
           { status: 404 }
@@ -175,16 +150,16 @@ export async function POST(request: NextRequest) {
     // Create product
     const product = await prisma.product.create({
       data: {
-        tenantId: user.tenantId,
+        tenantId: ctx.tenantId,
         ...data,
-        createdBy: user.id,
-        updatedBy: user.id,
+        createdBy: ctx.userId,
+        updatedBy: ctx.userId,
       },
       include: { taxCode: true },
     });
 
     logger.info('Product created', {
-      tenantId: user.tenantId,
+      tenantId: ctx.tenantId,
       productId: product.id,
       productCode: product.productCode,
     });
@@ -211,3 +186,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const GET = withTenantContext(handleGET, { requireAuth: true });
+export const POST = withTenantContext(handlePOST, { requireAuth: true });

@@ -5,7 +5,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { withTenantContext } from '@/lib/api-wrapper';
+import { tenantContext } from '@/lib/tenant-context';
 import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 import { z } from 'zod';
@@ -27,37 +28,29 @@ const UpdateRuleSchema = z.object({
 // GET /api/mdm/survivorship-rules/[id] - Get rule by ID
 // ============================================================================
 
-export async function GET(
+async function handleGET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Get tenant from user
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { tenantId: true },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+    const ctx = tenantContext.getContext();
 
     // Fetch rule
     const rule = await prisma.survivorshipRule.findUnique({
       where: { id: params.id },
     });
 
-    if (!rule || rule.tenantId !== user.tenantId) {
+    if (!rule || rule.tenantId !== ctx.tenantId) {
       return NextResponse.json(
         { error: 'Survivorship rule not found' },
         { status: 404 }
       );
     }
+
+    logger.info('Survivorship rule retrieved', {
+      tenantId: ctx.tenantId,
+      ruleId: params.id,
+    });
 
     return NextResponse.json({
       success: true,
@@ -76,32 +69,19 @@ export async function GET(
 // PUT /api/mdm/survivorship-rules/[id] - Update rule
 // ============================================================================
 
-export async function PUT(
+async function handlePUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Get tenant from user
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { tenantId: true, id: true },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+    const ctx = tenantContext.getContext();
 
     // Verify rule exists and belongs to tenant
     const rule = await prisma.survivorshipRule.findUnique({
       where: { id: params.id },
     });
 
-    if (!rule || rule.tenantId !== user.tenantId) {
+    if (!rule || rule.tenantId !== ctx.tenantId) {
       return NextResponse.json(
         { error: 'Survivorship rule not found' },
         { status: 404 }
@@ -117,13 +97,13 @@ export async function PUT(
       where: { id: params.id },
       data: {
         ...data,
-        updatedBy: user.id,
+        updatedBy: ctx.userId,
         updatedAt: new Date(),
       },
     });
 
     logger.info('Survivorship rule updated', {
-      tenantId: user.tenantId,
+      tenantId: ctx.tenantId,
       ruleId: params.id,
     });
 
@@ -151,32 +131,19 @@ export async function PUT(
 // DELETE /api/mdm/survivorship-rules/[id] - Delete rule
 // ============================================================================
 
-export async function DELETE(
+async function handleDELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Get tenant from user
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { tenantId: true },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+    const ctx = tenantContext.getContext();
 
     // Verify rule exists and belongs to tenant
     const rule = await prisma.survivorshipRule.findUnique({
       where: { id: params.id },
     });
 
-    if (!rule || rule.tenantId !== user.tenantId) {
+    if (!rule || rule.tenantId !== ctx.tenantId) {
       return NextResponse.json(
         { error: 'Survivorship rule not found' },
         { status: 404 }
@@ -189,7 +156,7 @@ export async function DELETE(
     });
 
     logger.info('Survivorship rule deleted', {
-      tenantId: user.tenantId,
+      tenantId: ctx.tenantId,
       ruleId: params.id,
     });
 
@@ -205,3 +172,7 @@ export async function DELETE(
     );
   }
 }
+
+export const GET = withTenantContext(handleGET, { requireAuth: true });
+export const PUT = withTenantContext(handlePUT, { requireAuth: true });
+export const DELETE = withTenantContext(handleDELETE, { requireAuth: true });

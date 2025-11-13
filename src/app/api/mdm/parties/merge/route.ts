@@ -5,7 +5,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { withTenantContext } from '@/lib/api-wrapper';
+import { tenantContext } from '@/lib/tenant-context';
 import { prisma } from '@/lib/prisma';
 import MDMService from '@/lib/mdm/mdm-service';
 import { logger } from '@/lib/logger';
@@ -31,22 +32,9 @@ const UnmergeSchema = z.object({
 // POST /api/mdm/parties/merge - Merge two parties
 // ============================================================================
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
-    const session = await getServerSession();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Get tenant from user
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { tenantId: true },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+    const ctx = tenantContext.getContext();
 
     // Parse and validate request body
     const body = await request.json();
@@ -58,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     // Perform merge
     const result = await mdm.mergeParties(
-      user.tenantId,
+      ctx.tenantId!,
       masterPartyId,
       duplicatePartyId,
       survivorshipRuleId,
@@ -66,7 +54,7 @@ export async function POST(request: NextRequest) {
     );
 
     logger.info('Party merge completed', {
-      tenantId: user.tenantId,
+      tenantId: ctx.tenantId,
       masterPartyId,
       duplicatePartyId,
       mergeLogId: result.mergeLogId,
@@ -100,25 +88,12 @@ export async function POST(request: NextRequest) {
 }
 
 // ============================================================================
-// POST /api/mdm/parties/unmerge - Unmerge two parties
+// PUT /api/mdm/parties/merge - Unmerge two parties
 // ============================================================================
 
-export async function PUT(request: NextRequest) {
+async function handlePUT(request: NextRequest) {
   try {
-    const session = await getServerSession();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Get tenant from user
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { tenantId: true },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+    const ctx = tenantContext.getContext();
 
     // Parse and validate request body
     const body = await request.json();
@@ -129,13 +104,13 @@ export async function PUT(request: NextRequest) {
 
     // Perform unmerge
     const result = await mdm.unmergeParty(
-      user.tenantId,
+      ctx.tenantId!,
       mergeLogId,
       unmergeReason
     );
 
     logger.info('Party unmerge completed', {
-      tenantId: user.tenantId,
+      tenantId: ctx.tenantId,
       mergeLogId,
       masterRecordId: result.masterRecordId,
       duplicateRecordId: result.duplicateRecordId,
@@ -167,3 +142,6 @@ export async function PUT(request: NextRequest) {
     );
   }
 }
+
+export const POST = withTenantContext(handlePOST, { requireAuth: true });
+export const PUT = withTenantContext(handlePUT, { requireAuth: true });
