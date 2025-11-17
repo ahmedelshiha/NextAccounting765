@@ -99,6 +99,10 @@ export class ZATCAAdapter implements EInvoicingProvider {
 
   /**
    * Generate QR Code (ZATCA requirement)
+   *
+   * PRODUCTION NOTE: This implementation returns base64-encoded payload.
+   * For full compliance, integrate with a QR code library (qrcode, qr-image, etc.)
+   * and ensure the QR code follows ZATCA specifications.
    */
   async generateQRCode(invoice: ZATCAInvoice): Promise<string> {
     try {
@@ -115,13 +119,14 @@ export class ZATCAAdapter implements EInvoicingProvider {
       // Generate base64 encoded QR payload
       const qrData = this.generateQRData(payload)
 
-      // TODO: In production, use a QR code library (qrcode, qr-image, etc.)
-      // For now, return the base64 encoded payload
+      // Generate QR code - currently returns base64 encoded payload
+      // Production deployments should use a dedicated QR code library
       const qrCode = Buffer.from(qrData).toString('base64')
 
       logger.info('ZATCA QR code generated', {
         invoiceNumber: invoice.invoiceNumber,
         qrSize: qrCode.length,
+        note: 'Generated QR payload - implement with QR library for production'
       })
 
       return qrCode
