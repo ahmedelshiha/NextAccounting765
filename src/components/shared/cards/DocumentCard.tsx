@@ -175,6 +175,9 @@ export default function DocumentCard({
           <div className="flex items-center gap-2">
             <Badge className={statusColors[document.status] || 'bg-gray-100 text-gray-800'}>
               {document.status === 'SCANNING' && <span className="mr-1">Scanning...</span>}
+              {document.status === 'SCANNED' && (
+                <CheckCircle2 className="h-3 w-3 mr-1" />
+              )}
               {document.status === 'CLEAN' && (
                 <CheckCircle2 className="h-3 w-3 mr-1" />
               )}
@@ -184,12 +187,6 @@ export default function DocumentCard({
               {document.status}
             </Badge>
           </div>
-          {document.isSecure && (
-            <div className="flex items-center gap-1 text-xs text-gray-600">
-              <Lock className="h-3 w-3" />
-              <span>Encrypted</span>
-            </div>
-          )}
         </div>
 
         {/* Metadata */}
