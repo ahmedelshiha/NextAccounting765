@@ -109,6 +109,7 @@ export const BookingBulkActionSchema = z.object({
  * Infer TypeScript types from schemas
  */
 export type BookingCreate = z.infer<typeof BookingCreateSchema>;
+export type BookingUpdate = z.infer<typeof BookingUpdateSchema>;
 export type BookingUpdateAdmin = z.infer<typeof BookingUpdateAdminSchema>;
 export type BookingFilters = z.infer<typeof BookingFiltersSchema>;
 export type BookingReschedule = z.infer<typeof BookingRescheduleSchema>;
