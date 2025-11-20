@@ -25,6 +25,9 @@ export { default as ApprovalCard } from './cards/ApprovalCard'
 export { default as ServiceForm } from './forms/ServiceForm'
 export { default as BookingForm } from './forms/BookingForm'
 export { default as TaskForm } from './forms/TaskForm'
+export { DocumentUploadForm } from './forms/DocumentUploadForm'
+export { DocumentSigningForm } from './forms/DocumentSigningForm'
+export { DocumentApprovalForm } from './forms/DocumentApprovalForm'
 
 // Inputs - Input components and pickers
 export { default as DateRangePicker } from './inputs/DateRangePicker'
