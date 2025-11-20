@@ -25,6 +25,9 @@ export { default as ApprovalCard } from './cards/ApprovalCard'
 export { default as ServiceForm } from './forms/ServiceForm'
 export { default as BookingForm } from './forms/BookingForm'
 export { default as TaskForm } from './forms/TaskForm'
+export { DocumentUploadForm } from './forms/DocumentUploadForm'
+export { DocumentSigningForm } from './forms/DocumentSigningForm'
+export { DocumentApprovalForm } from './forms/DocumentApprovalForm'
 
 // Inputs - Input components and pickers
 export { default as DateRangePicker } from './inputs/DateRangePicker'
@@ -41,6 +44,7 @@ export { default as StatusBadge } from './widgets/StatusBadge'
 export { default as PriorityBadge } from './widgets/PriorityBadge'
 export { default as UserAvatar } from './widgets/UserAvatar'
 export { ServiceGrid } from './widgets/ServiceGrid'
+export { DocumentVersionHistory } from './widgets/DocumentVersionHistory'
 
 // Notifications - Notification components
 export { default as NotificationBanner } from './notifications/NotificationBanner'
