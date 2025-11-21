@@ -14,8 +14,11 @@ import { z } from 'zod'
  * Supports filtering by status, priority, assignee, and date range
  */
 export const GET = withTenantContext(
-  async (request, { user, tenantId }) => {
+  async (request, { params }) => {
     try {
+      const ctx = requireTenantContext()
+      const { userId: userId_, tenantId } = ctx
+
       const { searchParams } = new URL(request.url)
 
       // Parse and validate filters
