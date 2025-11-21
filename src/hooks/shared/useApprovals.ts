@@ -3,11 +3,21 @@
 import useSWR, { mutate } from 'swr'
 import { apiFetch } from '@/lib/api'
 
-interface ApprovalFilters {
+export interface ApprovalFilters {
   limit?: number
   offset?: number
   type?: string
   status?: string
+}
+
+export interface UseApprovalsResponse {
+  approvals: any[]
+  total: number
+  hasMore: boolean
+  isLoading: boolean
+  error?: Error
+  pendingCount: number
+  refresh: () => Promise<any>
 }
 
 /**
@@ -30,10 +40,18 @@ export function useApprovals(filters: ApprovalFilters = {}) {
 
   const url = `/api/approvals?${searchParams.toString()}`
 
-  const { data, error, isLoading } = useSWR(url, (url) => apiFetch(url) as Promise<any>, {
-    revalidateOnFocus: false,
-    dedupingInterval: 10000,
-  })
+  const { data, error, isLoading } = useSWR(
+    url,
+    async (url) => {
+      const response = await apiFetch(url)
+      if (!response.ok) throw new Error(`${response.status}: ${response.statusText}`)
+      return response.json()
+    },
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 10000,
+    }
+  )
 
   const getPendingCount = (): number => {
     if (!data) return 0
@@ -57,7 +75,11 @@ export function useApprovals(filters: ApprovalFilters = {}) {
 export function useApproval(approvalId: string) {
   const { data, error, isLoading, mutate: refresh } = useSWR(
     approvalId ? `/api/approvals/${approvalId}` : null,
-    apiFetch,
+    async (url) => {
+      const response = await apiFetch(url)
+      if (!response.ok) throw new Error(`${response.status}: ${response.statusText}`)
+      return response.json()
+    },
     {
       revalidateOnFocus: false,
     }
