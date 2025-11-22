@@ -1,6 +1,6 @@
 'use client'
 
-import { onCLS, onFID, onFCP, onLCP, onTTFB, Metric } from 'web-vitals'
+import { onCLS, onINP, onFCP, onLCP, onTTFB, Metric } from 'web-vitals'
 
 /**
  * Core Web Vitals targets (Google's recommendations)
