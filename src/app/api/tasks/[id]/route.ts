@@ -142,9 +142,6 @@ export const PUT = withTenantContext(
 
       // Log audit event with changes
       const changes: Record<string, any> = {}
-      if (updates.status && updates.status !== oldValues.status) {
-        changes.status = { from: oldValues.status, to: updates.status }
-      }
       if (updates.priority && updates.priority !== oldValues.priority) {
         changes.priority = { from: oldValues.priority, to: updates.priority }
       }
