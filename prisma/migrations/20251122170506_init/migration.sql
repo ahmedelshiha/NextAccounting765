@@ -1,5 +1,9 @@
 -- CreateEnum
-CREATE TYPE "Priority" AS ENUM ('LOW', 'MEDIUM', 'HIGH', 'URGENT');
+DO $$ BEGIN
+    CREATE TYPE "Priority" AS ENUM ('LOW', 'MEDIUM', 'HIGH', 'URGENT');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- CreateEnum
 CREATE TYPE "PriorityStatus" AS ENUM ('OPEN', 'IN_PROGRESS', 'BLOCKED', 'DONE');

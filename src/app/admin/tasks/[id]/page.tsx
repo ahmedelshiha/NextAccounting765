@@ -28,14 +28,14 @@ export default function AdminTaskDetailPage() {
   const router = useRouter()
   const taskId = params.id as string
   const [isUpdating, setIsUpdating] = useState(false)
-  const [updateError, setUpdateError] = useState<string | null>(null)
+  const [updateError, setUpdateError] = useState<string | undefined>(undefined)
 
   const { task, comments, isLoading, error, mutate } = useTaskDetail(taskId)
   const { data: users = [] } = useUsersData({})
 
   const handleStatusChange = async (id: string, status: TaskStatus) => {
     setIsUpdating(true)
-    setUpdateError(null)
+    setUpdateError(undefined)
 
     try {
       const response = await fetch(`/api/admin/tasks/${id}`, {
@@ -60,7 +60,7 @@ export default function AdminTaskDetailPage() {
 
   const handleAddComment = async (taskId: string, content: string) => {
     setIsUpdating(true)
-    setUpdateError(null)
+    setUpdateError(undefined)
 
     try {
       const response = await fetch(`/api/tasks/${taskId}/comments`, {
@@ -85,7 +85,7 @@ export default function AdminTaskDetailPage() {
 
   const handleAssign = async (taskId: string, assigneeId: string) => {
     setIsUpdating(true)
-    setUpdateError(null)
+    setUpdateError(undefined)
 
     try {
       const response = await fetch(`/api/admin/tasks/${taskId}`, {
@@ -114,7 +114,7 @@ export default function AdminTaskDetailPage() {
     }
 
     setIsUpdating(true)
-    setUpdateError(null)
+    setUpdateError(undefined)
 
     try {
       const response = await fetch(`/api/admin/tasks/${taskId}`, {

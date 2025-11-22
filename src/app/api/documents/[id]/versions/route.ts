@@ -1,6 +1,8 @@
 'use server'
 
-import { withTenantAuth, type AuthenticatedRequest } from '@/lib/auth-middleware'
+import { NextRequest } from 'next/server'
+import { withTenantContext } from '@/lib/api-wrapper'
+import { requireTenantContext } from '@/lib/tenant-utils'
 import { respond } from '@/lib/api-response'
 import prisma from '@/lib/prisma'
 import { z } from 'zod'
@@ -9,13 +11,11 @@ import { z } from 'zod'
  * GET /api/documents/[id]/versions
  * Get document version history
  */
-export const GET = withTenantAuth(async (request, context) => {
+export const GET = withTenantContext(async (request: NextRequest, { params }: any) => {
   try {
-    const authReq = request as AuthenticatedRequest
-    const tenantId = authReq.tenantId
-    const userId = authReq.userId
-    const userRole = authReq.userRole
-    const params = (context as any)?.params || {}
+    const ctx = requireTenantContext()
+    const { tenantId, userId, role } = ctx
+    const userRole = role
 
     const document = await prisma.attachment.findFirst({
       where: {
@@ -77,7 +77,7 @@ export const GET = withTenantAuth(async (request, context) => {
         userId,
         resource: 'Document',
       },
-    }).catch(() => {})
+    }).catch(() => { })
 
     return respond.ok({
       data: formattedVersions,
@@ -96,13 +96,11 @@ export const GET = withTenantAuth(async (request, context) => {
  * POST /api/documents/[id]/versions
  * Create new version of document
  */
-export const POST = withTenantAuth(async (request, context) => {
+export const POST = withTenantContext(async (request: NextRequest, { params }: any) => {
   try {
-    const authReq = request as AuthenticatedRequest
-    const tenantId = authReq.tenantId
-    const userId = authReq.userId
-    const userRole = authReq.userRole
-    const params = (context as any)?.params || {}
+    const ctx = requireTenantContext()
+    const { tenantId, userId, role } = ctx
+    const userRole = role
 
     const document = await prisma.attachment.findFirst({
       where: {
@@ -191,7 +189,7 @@ export const POST = withTenantAuth(async (request, context) => {
         contentType: newFile.type,
         url: versionUrl,
       },
-    }).catch(() => {})
+    }).catch(() => { })
 
     // Log audit
     await prisma.auditLog.create({
@@ -206,7 +204,7 @@ export const POST = withTenantAuth(async (request, context) => {
           changeDescription,
         },
       },
-    }).catch(() => {})
+    }).catch(() => { })
 
     return respond.created({
       data: {
