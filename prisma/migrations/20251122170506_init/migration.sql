@@ -786,7 +786,8 @@ EXCEPTION
 END $$;
 
 -- CreateTable
-CREATE TABLE "sidebar_preferences" (
+DO $$ BEGIN
+    CREATE TABLE "sidebar_preferences" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "collapsed" BOOLEAN NOT NULL DEFAULT false,
@@ -797,10 +798,14 @@ CREATE TABLE "sidebar_preferences" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "sidebar_preferences_pkey" PRIMARY KEY ("id")
-);
+    );
+EXCEPTION
+    WHEN duplicate_table THEN null;
+END $$;
 
 -- CreateTable
-CREATE TABLE "Currency" (
+DO $$ BEGIN
+    CREATE TABLE "Currency" (
     "code" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "symbol" TEXT,
@@ -811,10 +816,14 @@ CREATE TABLE "Currency" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Currency_pkey" PRIMARY KEY ("code")
-);
+    );
+EXCEPTION
+    WHEN duplicate_table THEN null;
+END $$;
 
 -- CreateTable
-CREATE TABLE "ExchangeRate" (
+DO $$ BEGIN
+    CREATE TABLE "ExchangeRate" (
     "id" SERIAL NOT NULL,
     "base" TEXT NOT NULL,
     "target" TEXT NOT NULL,
@@ -824,10 +833,14 @@ CREATE TABLE "ExchangeRate" (
     "ttlSeconds" INTEGER,
 
     CONSTRAINT "ExchangeRate_pkey" PRIMARY KEY ("id")
-);
+    );
+EXCEPTION
+    WHEN duplicate_table THEN null;
+END $$;
 
 -- CreateTable
-CREATE TABLE "PriceOverride" (
+DO $$ BEGIN
+    CREATE TABLE "PriceOverride" (
     "id" SERIAL NOT NULL,
     "entity" TEXT NOT NULL,
     "entityId" TEXT NOT NULL,
@@ -838,10 +851,14 @@ CREATE TABLE "PriceOverride" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "PriceOverride_pkey" PRIMARY KEY ("id")
-);
+    );
+EXCEPTION
+    WHEN duplicate_table THEN null;
+END $$;
 
 -- CreateTable
-CREATE TABLE "Task" (
+DO $$ BEGIN
+    CREATE TABLE "Task" (
     "id" TEXT NOT NULL,
     "tenantId" TEXT NOT NULL,
     "title" TEXT NOT NULL,
@@ -861,10 +878,14 @@ CREATE TABLE "Task" (
     "bookingId" TEXT,
 
     CONSTRAINT "Task_pkey" PRIMARY KEY ("id")
-);
+    );
+EXCEPTION
+    WHEN duplicate_table THEN null;
+END $$;
 
 -- CreateTable
-CREATE TABLE "ComplianceRecord" (
+DO $$ BEGIN
+    CREATE TABLE "ComplianceRecord" (
     "id" TEXT NOT NULL,
     "tenantId" TEXT NOT NULL,
     "taskId" TEXT NOT NULL,
@@ -878,10 +899,14 @@ CREATE TABLE "ComplianceRecord" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "ComplianceRecord_pkey" PRIMARY KEY ("id")
-);
+    );
+EXCEPTION
+    WHEN duplicate_table THEN null;
+END $$;
 
 -- CreateTable
-CREATE TABLE "TaskComment" (
+DO $$ BEGIN
+    CREATE TABLE "TaskComment" (
     "id" TEXT NOT NULL,
     "taskId" TEXT NOT NULL,
     "authorId" TEXT,
@@ -892,7 +917,10 @@ CREATE TABLE "TaskComment" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "TaskComment_pkey" PRIMARY KEY ("id")
-);
+    );
+EXCEPTION
+    WHEN duplicate_table THEN null;
+END $$;
 
 -- CreateTable
 CREATE TABLE "task_templates" (
