@@ -146,7 +146,7 @@ export const FilterAnalyticsDashboard = React.memo(function FilterAnalyticsDashb
               </CardHeader>
               <CardContent>
                 <UserEngagementTable
-                  metrics={userEngagementMetrics as Record<string, unknown>[]}
+                  metrics={userEngagementMetrics as unknown as Record<string, unknown>[]}
                   isLoading={isLoading}
                 />
               </CardContent>

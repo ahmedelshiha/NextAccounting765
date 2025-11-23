@@ -87,7 +87,7 @@ function applySearchOperator(
     case 'exact':
       return users.filter((user: UserItem) =>
         fieldsToSearch.some((f: string) => {
-          const value = getNestedValue(user as Record<string, unknown>, f)
+          const value = getNestedValue(user as unknown as Record<string, unknown>, f)
           return String(value ?? '').toLowerCase() === searchTerm.toLowerCase()
         })
       )
@@ -95,7 +95,7 @@ function applySearchOperator(
     case 'startsWith':
       return users.filter((user: UserItem) =>
         fieldsToSearch.some((f: string) => {
-          const value = getNestedValue(user as Record<string, unknown>, f)
+          const value = getNestedValue(user as unknown as Record<string, unknown>, f)
           return String(value ?? '').toLowerCase().startsWith(searchTerm.toLowerCase())
         })
       )
@@ -103,7 +103,7 @@ function applySearchOperator(
     case 'endsWith':
       return users.filter((user: UserItem) =>
         fieldsToSearch.some((f: string) => {
-          const value = getNestedValue(user as Record<string, unknown>, f)
+          const value = getNestedValue(user as unknown as Record<string, unknown>, f)
           return String(value ?? '').toLowerCase().endsWith(searchTerm.toLowerCase())
         })
       )
@@ -118,7 +118,7 @@ function applySearchOperator(
     default:
       return users.filter((user: UserItem) =>
         fieldsToSearch.some((f: string) => {
-          const value = getNestedValue(user as Record<string, unknown>, f)
+          const value = getNestedValue(user as unknown as Record<string, unknown>, f)
           return String(value ?? '').toLowerCase().includes(searchTerm.toLowerCase())
         })
       )
