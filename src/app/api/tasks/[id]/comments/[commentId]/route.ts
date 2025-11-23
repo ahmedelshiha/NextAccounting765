@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withTenantContext } from '@/lib/api-wrapper'
+import { requireTenantContext } from '@/lib/tenant-utils'
 import { respond } from '@/lib/api-response'
 import { TaskCommentUpdateSchema } from '@/schemas/shared/entities/task'
 import { prisma } from '@/lib/prisma'
@@ -11,15 +12,16 @@ import { z } from 'zod'
  * Update a task comment (author or admin only)
  */
 export const PUT = withTenantContext(
-  async (request, { user, tenantId }, { params }) => {
+  async (request: NextRequest, { params }: any) => {
     try {
+      const { userId, tenantId, role } = requireTenantContext()
       const { id: taskId, commentId } = await params
 
       // Verify task exists
       const task = await prisma.task.findFirst({
         where: {
           id: taskId,
-          tenantId,
+          tenantId: tenantId as string,
         },
       })
 
@@ -40,7 +42,8 @@ export const PUT = withTenantContext(
       }
 
       // Check authorization: only comment author or admins can update
-      if (!user.isAdmin && comment.authorId !== user.id) {
+      const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN'
+      if (!isAdmin && comment.authorId !== userId) {
         return respond.forbidden('You do not have permission to update this comment')
       }
 
@@ -68,7 +71,7 @@ export const PUT = withTenantContext(
       // Log audit event
       await logAudit({
         tenantId,
-        userId: user.id,
+        userId,
         action: 'TASK_COMMENT_UPDATED',
         entity: 'TaskComment',
         entityId: commentId,
@@ -96,8 +99,9 @@ export const PUT = withTenantContext(
  * Delete a task comment (author or admin only)
  */
 export const DELETE = withTenantContext(
-  async (request, { user, tenantId }, { params }) => {
+  async (request: NextRequest, { params }: any) => {
     try {
+      const { userId, tenantId, role } = requireTenantContext()
       const { id: taskId, commentId } = await params
 
       // Verify task exists
@@ -125,7 +129,8 @@ export const DELETE = withTenantContext(
       }
 
       // Check authorization: only comment author or admins can delete
-      if (!user.isAdmin && comment.authorId !== user.id) {
+      const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN'
+      if (!isAdmin && comment.authorId !== userId) {
         return respond.forbidden('You do not have permission to delete this comment')
       }
 
@@ -137,7 +142,7 @@ export const DELETE = withTenantContext(
       // Log audit event
       await logAudit({
         tenantId,
-        userId: user.id,
+        userId,
         action: 'TASK_COMMENT_DELETED',
         entity: 'TaskComment',
         entityId: commentId,

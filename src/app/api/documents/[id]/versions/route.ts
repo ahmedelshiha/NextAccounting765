@@ -1,6 +1,8 @@
 'use server'
 
-import { withTenantAuth, type AuthenticatedRequest } from '@/lib/auth-middleware'
+import { NextRequest } from 'next/server'
+import { withTenantContext } from '@/lib/api-wrapper'
+import { requireTenantContext } from '@/lib/tenant-utils'
 import { respond } from '@/lib/api-response'
 import prisma from '@/lib/prisma'
 import { z } from 'zod'
@@ -9,18 +11,16 @@ import { z } from 'zod'
  * GET /api/documents/[id]/versions
  * Get document version history
  */
-export const GET = withTenantAuth(async (request, context) => {
+export const GET = withTenantContext(async (request: NextRequest, { params }: any) => {
   try {
-    const authReq = request as AuthenticatedRequest
-    const tenantId = authReq.tenantId
-    const userId = authReq.userId
-    const userRole = authReq.userRole
-    const params = (context as any)?.params || {}
+    const ctx = requireTenantContext()
+    const { tenantId, userId, role } = ctx
+    const userRole = role
 
     const document = await prisma.attachment.findFirst({
       where: {
         id: params.id,
-        tenantId,
+        tenantId: tenantId as string,
       },
     })
 
@@ -37,7 +37,7 @@ export const GET = withTenantAuth(async (request, context) => {
     const versions = await prisma.documentVersion.findMany({
       where: {
         attachmentId: params.id,
-        tenantId,
+        tenantId: tenantId as string,
       },
       include: {
         uploader: {
@@ -72,13 +72,12 @@ export const GET = withTenantAuth(async (request, context) => {
     // Log access
     await prisma.auditLog.create({
       data: {
-        tenantId,
+        tenantId: tenantId as string,
         action: 'documents:view_versions',
         userId,
         resource: 'Document',
-        resourceId: document.id,
       },
-    }).catch(() => {})
+    }).catch(() => { })
 
     return respond.ok({
       data: formattedVersions,
@@ -97,18 +96,16 @@ export const GET = withTenantAuth(async (request, context) => {
  * POST /api/documents/[id]/versions
  * Create new version of document
  */
-export const POST = withTenantAuth(async (request, context) => {
+export const POST = withTenantContext(async (request: NextRequest, { params }: any) => {
   try {
-    const authReq = request as AuthenticatedRequest
-    const tenantId = authReq.tenantId
-    const userId = authReq.userId
-    const userRole = authReq.userRole
-    const params = (context as any)?.params || {}
+    const ctx = requireTenantContext()
+    const { tenantId, userId, role } = ctx
+    const userRole = role
 
     const document = await prisma.attachment.findFirst({
       where: {
         id: params.id,
-        tenantId,
+        tenantId: tenantId as string,
       },
     })
 
@@ -170,7 +167,7 @@ export const POST = withTenantAuth(async (request, context) => {
         url: versionUrl,
         uploaderId: userId,
         changeDescription: changeDescription || null,
-        tenantId,
+        tenantId: tenantId as string,
       },
       include: {
         uploader: {
@@ -192,28 +189,22 @@ export const POST = withTenantAuth(async (request, context) => {
         contentType: newFile.type,
         url: versionUrl,
       },
-    }).catch(() => {})
+    }).catch(() => { })
 
     // Log audit
-    const auditAction = 'documents:create_version'
     await prisma.auditLog.create({
       data: {
-        tenantId,
-        action: auditAction,
-        userId,
-        resource: 'Document',
-        resourceId: document.id,
+        tenantId: tenantId as string,
         action: 'documents:create_version',
-        userId: user.id,
-        resourceType: 'DocumentVersion',
-        resourceId: version.id,
-        details: {
+        userId,
+        resource: 'DocumentVersion',
+        metadata: {
           documentId: params.id,
           versionNumber: newVersionNumber,
           changeDescription,
         },
       },
-    }).catch(() => {})
+    }).catch(() => { })
 
     return respond.created({
       data: {

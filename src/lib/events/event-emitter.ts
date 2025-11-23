@@ -214,9 +214,9 @@ export class EventEmitter {
           where: { id: entityId },
         })
 
-        if (document) {
+        if (document && document.uploaderId) {
           await NotificationHub.send({
-            userId: document.uploadedBy,
+            userId: document.uploaderId,
             tenantId,
             type: notificationType,
             title: 'Document Approved',

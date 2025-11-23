@@ -51,16 +51,16 @@ export function getDynamicComponentConfig(
 /**
  * Create a dynamically imported component
  */
-export function createDynamicComponent<T extends ComponentType<any>>(
-  importFunc: () => Promise<{ default: T }>,
+export function createDynamicComponent(
+  importFunc: () => Promise<{ default: any }>,
   type: 'admin' | 'modal' | 'modal-heavy' | 'page' | 'feature' = 'feature'
-): T {
+): any {
   const config = getDynamicComponentConfig(type)
 
   return dynamic(importFunc, {
     loading: config.loading,
     ssr: config.ssr,
-  }) as T
+  })
 }
 
 /**
@@ -68,19 +68,19 @@ export function createDynamicComponent<T extends ComponentType<any>>(
  */
 export const HEAVY_COMPONENTS_TO_SPLIT = {
   AdminDashboard: () =>
-    import('@/components/admin/AdminDashboard').then((m) => m.default),
+    import('@/components/admin/AdminDashboard').then((m) => ({ default: m.default })),
   AdminUsers: () =>
-    import('@/app/admin/users/page').then((m) => m.default),
+    import('@/app/admin/users/page').then((m) => ({ default: m.default })),
   AdminServices: () =>
-    import('@/app/admin/services/page').then((m) => m.default),
+    import('@/app/admin/services/page').then((m) => ({ default: m.default })),
   AdminBookings: () =>
-    import('@/app/admin/bookings/page').then((m) => m.default),
+    import('@/app/admin/bookings/page').then((m) => ({ default: m.default })),
   AdminTasks: () =>
-    import('@/app/admin/tasks/page').then((m) => m.default),
+    import('@/app/admin/tasks/page').then((m) => ({ default: m.default })),
   AdminDocuments: () =>
-    import('@/app/admin/documents/page').then((m) => m.default),
+    import('@/app/admin/documents/page').then((m) => ({ default: m.default })),
   AdminAnalytics: () =>
-    import('@/app/admin/analytics/page').then((m) => m.default),
+    import('@/app/admin/analytics/page').then((m) => ({ default: m.default })),
 }
 
 /**

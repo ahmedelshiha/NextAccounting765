@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withTenantContext } from '@/lib/api-wrapper'
+import { requireTenantContext } from '@/lib/tenant-utils'
 import { respond } from '@/lib/api-response'
-import { prisma } from '@/lib/prisma'
+import prisma from '@/lib/prisma'
 
 /**
  * GET /api/users/[id]
@@ -12,14 +13,17 @@ import { prisma } from '@/lib/prisma'
  * - Admins can view any user's profile
  */
 export const GET = withTenantContext(
-  async (request: NextRequest, { user, tenantId }, { params }) => {
+  async (request: NextRequest, { params }: any) => {
     try {
-      const targetUserId = params.id
+      const { userId, tenantId, role } = requireTenantContext()
+      const targetUserId = (await params).id
 
       // Validate user ID format
       if (!targetUserId || typeof targetUserId !== 'string') {
         return respond.badRequest('Invalid user ID')
       }
+
+      const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN'
 
       // Fetch the target user
       const targetUser = await prisma.user.findUnique({
@@ -33,10 +37,8 @@ export const GET = withTenantContext(
           position: true,
           createdAt: true,
           // Only admins see these fields
-          isAdmin: user.isAdmin,
-          emailVerified: user.isAdmin,
-          // Only self can see these
-          phone: user.id === targetUserId,
+          isAdmin: isAdmin,
+          emailVerified: isAdmin,
         },
       })
 
@@ -45,9 +47,9 @@ export const GET = withTenantContext(
       }
 
       // Check authorization
-      if (user.id !== targetUserId && !user.isAdmin) {
+      if (userId !== targetUserId && !isAdmin) {
         // Portal users can only see team members they work with
-        const isTeamMember = await checkIfTeamMember(user.id, targetUserId, tenantId)
+        const isTeamMember = await checkIfTeamMember(userId, targetUserId, tenantId ?? '')
 
         if (!isTeamMember) {
           return respond.forbidden('You do not have access to this user profile')
@@ -68,9 +70,9 @@ export const GET = withTenantContext(
       const response = {
         ...targetUser,
         // Remove admin-only fields for non-admins
-        ...(user.isAdmin ? {} : { isAdmin: undefined, emailVerified: undefined }),
+        ...(isAdmin ? {} : { isAdmin: undefined, emailVerified: undefined }),
         // Remove personal fields for non-self users
-        ...(user.id !== targetUserId ? { phone: undefined } : {}),
+        ...(userId !== targetUserId ? { phone: undefined } : {}),
       }
 
       Object.keys(response).forEach(
@@ -94,17 +96,20 @@ export const GET = withTenantContext(
  * - Admins can update any user's profile
  */
 export const PUT = withTenantContext(
-  async (request: NextRequest, { user, tenantId }, { params }) => {
+  async (request: NextRequest, { params }: any) => {
     try {
-      const targetUserId = params.id
+      const { userId, tenantId, role } = requireTenantContext()
+      const targetUserId = (await params).id
 
       // Validate user ID
       if (!targetUserId || typeof targetUserId !== 'string') {
         return respond.badRequest('Invalid user ID')
       }
 
+      const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN'
+
       // Check authorization
-      if (user.id !== targetUserId && !user.isAdmin) {
+      if (userId !== targetUserId && !isAdmin) {
         return respond.forbidden('You can only update your own profile')
       }
 
@@ -138,7 +143,7 @@ export const PUT = withTenantContext(
       }
 
       // Only admins can update these fields
-      if (user.isAdmin) {
+      if (isAdmin) {
         if (body.department !== undefined) {
           updateData.department = typeof body.department === 'string' ? body.department.trim() : null
         }
@@ -163,7 +168,7 @@ export const PUT = withTenantContext(
           image: true,
           department: true,
           position: true,
-          ...(user.id === targetUserId && { phone: true }),
+          ...(userId === targetUserId && { phone: true }),
         },
       })
 
@@ -190,9 +195,9 @@ async function checkIfTeamMember(
     where: {
       tenantId,
       OR: [
-        { assigneeId: userId, createdBy: targetUserId },
-        { assigneeId: targetUserId, createdBy: userId },
-        { AND: [{ OR: [{ assigneeId: userId }, { createdBy: userId }] }, { OR: [{ assigneeId: targetUserId }, { createdBy: targetUserId }] }] },
+        { assigneeId: userId, createdById: targetUserId },
+        { assigneeId: targetUserId, createdById: userId },
+        { AND: [{ OR: [{ assigneeId: userId }, { createdById: userId }] }, { OR: [{ assigneeId: targetUserId }, { createdById: targetUserId }] }] },
       ],
     },
     select: { id: true },
@@ -205,8 +210,8 @@ async function checkIfTeamMember(
     where: {
       tenantId,
       OR: [
-        { clientId: userId, assignedToId: targetUserId },
-        { clientId: targetUserId, assignedToId: userId },
+        { clientId: userId, assignedTeamMemberId: targetUserId },
+        { clientId: targetUserId, assignedTeamMemberId: userId },
       ],
     },
     select: { id: true },

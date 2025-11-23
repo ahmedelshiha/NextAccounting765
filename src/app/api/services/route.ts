@@ -22,7 +22,7 @@ function filterServiceFields(service: any, userRole: string) {
   }
 
   // Portal user - exclude admin-only fields
-  const { 
+  const {
     basePrice,
     advanceBookingDays,
     minAdvanceHours,
@@ -33,7 +33,7 @@ function filterServiceFields(service: any, userRole: string) {
     costPerUnit,
     profitMargin,
     internalNotes,
-    ...portalFields 
+    ...portalFields
   } = service
 
   return portalFields
@@ -68,14 +68,14 @@ const getCachedServices = withCache<any>(
 
     // For portal users, only show active services
     if (userRole !== 'ADMIN' && userRole !== 'TEAM_LEAD' && userRole !== 'TEAM_MEMBER') {
-      filters.status = 'ACTIVE'
+      filters.status = 'active'
     }
 
     const result = await svc.getServicesList(tenantId, filters as any)
 
     // Filter fields based on role
-    if (Array.isArray(result?.data)) {
-      result.data = result.data.map((s: any) => filterServiceFields(s, userRole))
+    if (Array.isArray(result?.services)) {
+      result.services = result.services.map((s: any) => filterServiceFields(s, userRole))
     }
 
     return result
@@ -90,7 +90,7 @@ const getCachedServices = withCache<any>(
  * - Unauthenticated: see public active services
  */
 export const GET = withTenantContext(
-  async (request: NextRequest) => {
+  async (request: NextRequest, { params }: any) => {
     try {
       // Rate limiting
       const ip = getClientIp(request as any)
@@ -98,8 +98,8 @@ export const GET = withTenantContext(
       if (rl && !rl.allowed) {
         await logAudit({
           action: 'security.ratelimit.block',
-          details: { ip, key: `services-list:${ip}`, route: new URL(request.url).pathname },
-        }).catch(() => {}) // Don't fail if audit logging fails
+          metadata: { ip, key: `services-list:${ip}`, route: new URL(request.url).pathname },
+        }).catch(() => { }) // Don't fail if audit logging fails
         return respond.tooMany('Rate limit exceeded')
       }
 
@@ -119,16 +119,16 @@ export const GET = withTenantContext(
       }
 
       // Get cached services
-      const result = await getCachedServices(request, ctx)
+      const result = await getCachedServices(request)
 
-      if (!result || !result.data) {
+      // Check if result is valid and has services array
+      if (!result || typeof result !== 'object' || !('services' in result) || !Array.isArray(result.services)) {
         return respond.ok(
-          [],
-          { pagination: { total: 0, limit: 20, offset: 0, hasMore: false } }
+          { services: [], total: 0, page: 0, limit: 20, totalPages: 0 }
         )
       }
 
-      return respond.ok(result.data, { pagination: result.pagination || {} })
+      return respond.ok(result as any)
     } catch (error) {
       logger.error('Failed to fetch services', { error })
       if (error instanceof Error && error.message.includes('Zod')) {
@@ -145,7 +145,7 @@ export const GET = withTenantContext(
  * Create a new service (Admin only)
  */
 export const POST = withTenantContext(
-  async (request: NextRequest) => {
+  async (request: NextRequest, { params }: any) => {
     try {
       const ctx = requireTenantContext()
 
@@ -160,13 +160,13 @@ export const POST = withTenantContext(
         return respond.tooMany('Too many service creation attempts')
       }
 
-      let body = await request.json()
+      const body = await request.json()
 
       // Validate request
       const validatedData = ServiceSchema.parse(body)
 
       // Create service
-      const service = await svc.createService(ctx.tenantId, validatedData as any)
+      const service = await svc.createService(ctx.tenantId as string, validatedData as any, ctx.userId as string)
 
       // Log audit
       await logAudit({

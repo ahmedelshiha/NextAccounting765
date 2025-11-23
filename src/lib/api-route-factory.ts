@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ZodSchema } from 'zod'
-import { withAdminAuth, withTenantAuth, type AuthenticatedRequest } from '@/lib/auth-middleware'
+
+import { withTenantContext } from '@/lib/api-wrapper'
+import { requireTenantContext } from '@/lib/tenant-utils'
 import { respond } from '@/lib/api-response'
 
 /**
  * Type for API route handlers
  */
 type APIHandler = (
-  request: AuthenticatedRequest,
+  request: NextRequest,
   context?: any
-) => Promise<NextResponse>
+) => Promise<Response | NextResponse>
 
 /**
  * Type for data fetcher functions
@@ -96,19 +98,23 @@ export function createListRoute<T>(
   fetcher: Fetcher<T>,
   filterSchema?: ZodSchema
 ): APIHandler {
-  return withTenantAuth(async (request: AuthenticatedRequest) => {
+  return withTenantContext(async (request: NextRequest) => {
     try {
+      const ctx = requireTenantContext()
+      const tenantId = ctx.tenantId
+      if (!tenantId) return respond.forbidden('Tenant context required')
+
       const { searchParams } = new URL(request.url)
       const limit = Math.min(Number(searchParams.get('limit')) || 50, 100)
       const offset = Number(searchParams.get('offset')) || 0
 
       // Parse and validate filters
-      let filters = parseFilters(searchParams, filterSchema)
+      const filters = parseFilters(searchParams, filterSchema)
       filters.limit = limit
       filters.offset = offset
 
       // Fetch data
-      const { data, total } = await fetcher(request.tenantId, filters)
+      const { data, total } = await fetcher(tenantId, filters)
 
       return respond.ok(data, {
         pagination: {
@@ -142,14 +148,18 @@ export function createListRoute<T>(
 export function createDetailGetRoute<T>(
   fetcher: DetailFetcher<T>
 ): APIHandler {
-  return withTenantAuth(async (request: AuthenticatedRequest, context) => {
+  return withTenantContext(async (request: NextRequest, context) => {
     try {
+      const ctx = requireTenantContext()
+      const tenantId = ctx.tenantId
+      if (!tenantId) return respond.forbidden('Tenant context required')
+
       const id = context?.params?.id
       if (!id) {
         return respond.badRequest('Resource ID is required')
       }
 
-      const data = await fetcher(id, request.tenantId)
+      const data = await fetcher(id, tenantId)
 
       if (!data) {
         return respond.notFound()
@@ -183,8 +193,12 @@ export function createDetailUpdateRoute<T>(
   updater: Updater<T>,
   validationSchema?: ZodSchema
 ): APIHandler {
-  return withTenantAuth(async (request: AuthenticatedRequest, context) => {
+  return withTenantContext(async (request: NextRequest, context) => {
     try {
+      const ctx = requireTenantContext()
+      const tenantId = ctx.tenantId
+      if (!tenantId) return respond.forbidden('Tenant context required')
+
       const id = context?.params?.id
       if (!id) {
         return respond.badRequest('Resource ID is required')
@@ -201,7 +215,7 @@ export function createDetailUpdateRoute<T>(
         }
       }
 
-      const data = await updater(id, request.tenantId, body)
+      const data = await updater(id, tenantId, body)
       return respond.ok(data)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to update resource'
@@ -230,14 +244,18 @@ export function createDetailUpdateRoute<T>(
 export function createDetailDeleteRoute(
   deleter: Deleter
 ): APIHandler {
-  return withTenantAuth(async (request: AuthenticatedRequest, context) => {
+  return withTenantContext(async (request: NextRequest, context) => {
     try {
+      const ctx = requireTenantContext()
+      const tenantId = ctx.tenantId
+      if (!tenantId) return respond.forbidden('Tenant context required')
+
       const id = context?.params?.id
       if (!id) {
         return respond.badRequest('Resource ID is required')
       }
 
-      await deleter(id, request.tenantId)
+      await deleter(id, tenantId)
       return respond.ok({ success: true })
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to delete resource'
@@ -271,8 +289,12 @@ export function createCreateRoute<T>(
   creator: Creator<T>,
   validationSchema?: ZodSchema
 ): APIHandler {
-  return withTenantAuth(async (request: AuthenticatedRequest) => {
+  return withTenantContext(async (request: NextRequest) => {
     try {
+      const ctx = requireTenantContext()
+      const tenantId = ctx.tenantId
+      if (!tenantId) return respond.forbidden('Tenant context required')
+
       let body = await request.json()
 
       // Validate input
@@ -284,7 +306,7 @@ export function createCreateRoute<T>(
         }
       }
 
-      const data = await creator(request.tenantId, body)
+      const data = await creator(tenantId, body)
       return respond.created(data)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to create resource'

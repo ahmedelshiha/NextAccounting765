@@ -1,20 +1,24 @@
 'use server'
 
-import { withTenantAuth } from '@/lib/auth-middleware'
+import { NextRequest, NextResponse } from 'next/server'
+import { withTenantContext } from '@/lib/api-wrapper'
+import { requireTenantContext } from '@/lib/tenant-utils'
 import { respond } from '@/lib/api-response'
 import prisma from '@/lib/prisma'
-import { redirect } from 'next/navigation'
 
 /**
  * GET /api/documents/[id]/download
  * Download document with permission check and audit logging
  */
-export const GET = withTenantAuth(async (request, { tenantId, user }, { params }) => {
+export const GET = withTenantContext(async (request: NextRequest, { params }: any) => {
   try {
+    const ctx = requireTenantContext()
+    const { tenantId, userId, role } = ctx
+    const userRole = role
     const document = await prisma.attachment.findFirst({
       where: {
         id: params.id,
-        tenantId,
+        tenantId: tenantId as string,
       },
       include: {
         uploader: {
@@ -31,7 +35,7 @@ export const GET = withTenantAuth(async (request, { tenantId, user }, { params }
     }
 
     // Authorization check
-    if (user.role !== 'ADMIN' && document.uploaderId !== user.id) {
+    if (userRole !== 'ADMIN' && document.uploaderId !== userId) {
       return respond.forbidden('You do not have access to this document')
     }
 
@@ -56,36 +60,20 @@ export const GET = withTenantAuth(async (request, { tenantId, user }, { params }
     // Log download
     await prisma.auditLog.create({
       data: {
-        tenantId,
+        tenantId: tenantId as string,
         action: 'documents:download',
-        userId: user.id,
-        resourceType: 'Document',
-        resourceId: document.id,
-        details: {
+        userId: userId as string,
+        resource: 'Document',
+        metadata: {
+          documentId: document.id,
           documentName: document.name,
           documentSize: document.size,
-          downloadedBy: user.id,
+          downloadedBy: userId,
         },
       },
-    }).catch(() => {})
+    }).catch(() => { })
 
-    // Create download record for analytics
-    await prisma.documentAuditLog.create({
-      data: {
-        attachmentId: document.id,
-        action: 'download',
-        performedBy: user.id,
-        performedAt: new Date(),
-        tenantId,
-        details: {
-          userAgent: request.headers.get('user-agent'),
-          ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
-        },
-      },
-    }).catch(() => {})
-
-    // Return download response with redirect to signed URL
-    return Response.redirect(document.url, 302)
+    return NextResponse.redirect(document.url, 302)
   } catch (error) {
     console.error('Download document error:', error)
     return respond.serverError()

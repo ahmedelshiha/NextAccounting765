@@ -1,6 +1,6 @@
 'use client'
 
-import { getCLS, getFID, getFCP, getLCP, getTTFB, Metric } from 'web-vitals'
+import { onCLS, onINP, onFCP, onLCP, onTTFB, Metric } from 'web-vitals'
 
 /**
  * Core Web Vitals targets (Google's recommendations)
@@ -34,7 +34,7 @@ export function sendMetricToAnalytics(metric: Metric) {
 
   // Send to your analytics service (Sentry, DataDog, etc.)
   if (typeof window !== 'undefined' && (window as any).gtag) {
-    ;(window as any).gtag('event', metric.name, {
+    ; (window as any).gtag('event', metric.name, {
       event_category: 'web_vitals',
       value: Math.round(metric.value),
       event_label: metric.id,
@@ -44,7 +44,7 @@ export function sendMetricToAnalytics(metric: Metric) {
 
   // Send to Sentry if available
   if (typeof window !== 'undefined' && (window as any).__SENTRY__) {
-    ;(window as any).__SENTRY__.captureException(
+    ; (window as any).__SENTRY__.captureException(
       new Error(`Web Vital: ${metric.name} = ${metric.value}`),
       {
         level: 'info',
@@ -63,23 +63,23 @@ export function sendMetricToAnalytics(metric: Metric) {
 }
 
 /**
- * Track all web vitals
+ * Track all web vitals (web-vitals v3 API)
  */
 export function monitorWebVitals() {
   if (typeof window === 'undefined') return
 
-  getCLS(sendMetricToAnalytics)
-  getFID(sendMetricToAnalytics)
-  getFCP(sendMetricToAnalytics)
-  getLCP(sendMetricToAnalytics)
-  getTTFB(sendMetricToAnalytics)
+  onCLS(sendMetricToAnalytics)
+  onINP(sendMetricToAnalytics)
+  onFCP(sendMetricToAnalytics)
+  onLCP(sendMetricToAnalytics)
+  onTTFB(sendMetricToAnalytics)
 }
 
 /**
  * Track specific performance metric
  */
 export function trackPerformanceMetric(
-  name: string,
+  name: 'CLS' | 'FCP' | 'LCP' | 'INP' | 'TTFB',
   startTime: number = performance.now()
 ): () => void {
   return () => {
@@ -87,15 +87,15 @@ export function trackPerformanceMetric(
     sendMetricToAnalytics({
       name,
       value: duration,
-      rating: duration < 1000 ? 'good' : duration < 2000 ? 'fair' : 'poor',
+      rating: duration < 1000 ? 'good' : duration < 2000 ? 'needs-improvement' : 'poor',
       delta: 0,
       id: `${name}-${Date.now()}`,
-    })
+    } as Metric)
   }
 }
 
 /**
- * Report all web vitals on page load
+ * Report all web vitals on page load (web-vitals v3 API)
  */
 export async function reportWebVitals() {
   const metrics: PerformanceMetric[] = []
@@ -107,7 +107,7 @@ export async function reportWebVitals() {
       return
     }
 
-    getCLS((metric) => {
+    onCLS((metric) => {
       metrics.push({
         ...metric,
         isGood: metric.value <= WEB_VITALS_TARGETS.CLS,
@@ -117,7 +117,7 @@ export async function reportWebVitals() {
       })
     })
 
-    getFCP((metric) => {
+    onFCP((metric) => {
       metrics.push({
         ...metric,
         isGood: metric.value <= WEB_VITALS_TARGETS.FCP,
@@ -127,7 +127,7 @@ export async function reportWebVitals() {
       })
     })
 
-    getLCP((metric) => {
+    onLCP((metric) => {
       metrics.push({
         ...metric,
         isGood: metric.value <= WEB_VITALS_TARGETS.LCP,

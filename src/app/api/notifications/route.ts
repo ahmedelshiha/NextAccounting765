@@ -49,8 +49,8 @@ export const GET = withTenantContext(async (request: NextRequest) => {
         total,
         unreadCount,
         limit: options.limit,
-        offset: options.offset,
-        hasMore: options.offset + options.limit < total,
+        offset: options.offset || 0,
+        hasMore: (options.offset || 0) + options.limit < total,
       },
     })
   } catch (error) {
@@ -105,7 +105,7 @@ export const POST = withTenantContext(async (request: NextRequest) => {
     })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return respond.badRequest(error.errors)
+      return respond.badRequest(error.errors.map(e => e.message).join(', '))
     }
     console.error('Error updating notifications:', error)
     return respond.serverError()

@@ -6,7 +6,7 @@ import { requireTenantContext } from '@/lib/tenant-utils';
 import { processEngine, ProcessStatus } from '@/lib/bpm/process-engine';
 
 const ProcessDefinitionSchema = z.object({
-  id: z.string().min(1),
+  id: z.string().min(1).optional(),
   name: z.string().min(1),
   description: z.string().optional(),
   version: z.string(),
@@ -42,7 +42,7 @@ export const GET = withTenantContext(
       return NextResponse.json({
         success: true,
         data: {
-          processes,
+          processes: processes.map(p => ({ ...p, id: p.id || 'default-id' })),
           total: processes.length,
         },
       });
@@ -69,10 +69,13 @@ export const POST = withTenantContext(
       const body = await request.json();
       const validated = ProcessDefinitionSchema.parse(body);
 
-      const process = processEngine.createProcessDefinition({
+      // Ensure id is set - generate if not provided
+      const processData = {
         ...validated,
-        createdBy: userId || 'system',
-      });
+        id: validated.id || `proc-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+      };
+
+      const process = processEngine.createProcessDefinition(processData as any);
 
       return NextResponse.json({
         success: true,

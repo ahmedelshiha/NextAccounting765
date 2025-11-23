@@ -68,7 +68,6 @@ export const GET = withTenantContext(
         },
         include: {
           availabilitySlots: true,
-          reviews: { take: 5, orderBy: { createdAt: 'desc' } },
         },
       })
 
@@ -115,7 +114,7 @@ export const PUT = withTenantContext(
         return respond.forbidden('You do not have permission to update services')
       }
 
-      let body = await request.json()
+      const body = await request.json()
 
       // Find existing service
       const existing = await prisma.service.findFirst({
@@ -201,7 +200,6 @@ export const DELETE = withTenantContext(
         data: {
           active: false,
           status: 'INACTIVE',
-          deletedAt: new Date(),
         },
       })
 

@@ -17,10 +17,10 @@ export const GET = withTenantContext(
   async (request, { params }) => {
     try {
       const ctx = requireTenantContext()
-      const { user, tenantId } = ctx
+      const { userId, tenantId, role } = ctx
 
       // Verify admin access
-      if (!user?.role !== 'SUPER_ADMIN' && !user?.tenantRole?.includes('ADMIN')) {
+      if (role !== 'SUPER_ADMIN' && role !== 'ADMIN') {
         return respond.forbidden('Only administrators can access this endpoint')
       }
 
@@ -156,10 +156,10 @@ export const POST = withTenantContext(
   async (request, { params }) => {
     try {
       const ctx = requireTenantContext()
-      const { user, tenantId } = ctx
+      const { userId, tenantId, role } = ctx
 
       // Verify admin access
-      if (ctx.role !== 'SUPER_ADMIN' && !ctx.tenantRole?.includes('ADMIN')) {
+      if (role !== 'SUPER_ADMIN' && role !== 'ADMIN') {
         return respond.forbidden('Only administrators can create tasks')
       }
 
@@ -169,8 +169,15 @@ export const POST = withTenantContext(
       // Create the task
       const task = await prisma.task.create({
         data: {
-          ...input,
-          tenantId,
+          title: input.title,
+          description: input.description,
+          priority: input.priority,
+          dueAt: input.dueAt,
+          assigneeId: input.assigneeId,
+          complianceRequired: input.complianceRequired,
+          complianceDeadline: input.complianceDeadline,
+          tenantId: tenantId as string,
+          createdById: userId as string,
         },
         include: {
           assignee: {
@@ -189,10 +196,11 @@ export const POST = withTenantContext(
       // Log audit event
       await logAudit({
         userId: ctx.userId,
+        tenantId: ctx.tenantId,
         action: 'TASK_CREATED',
-        entity: 'Task',
-        entityId: task.id,
-        changes: {
+        resource: 'Task',
+        details: {
+          taskId: task.id,
           title: task.title,
           priority: task.priority,
           assigneeId: task.assigneeId,

@@ -9,10 +9,17 @@ import {
 } from '../api-route-factory'
 import { z } from 'zod'
 
-// Mock auth middleware
-vi.mock('@/lib/auth-middleware', () => ({
-  withTenantAuth: (handler: any) => handler,
-  withAdminAuth: (handler: any) => handler,
+// Mock api wrapper
+vi.mock('@/lib/api-wrapper', () => ({
+  withTenantContext: (handler: any) => handler,
+}))
+vi.mock('../api-wrapper', () => ({
+  withTenantContext: (handler: any) => handler,
+}))
+
+// Mock tenant utils
+vi.mock('@/lib/tenant-utils', () => ({
+  requireTenantContext: () => ({ tenantId: 'tenant-1' }),
 }))
 
 // Mock respond utility

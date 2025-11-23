@@ -141,10 +141,12 @@ export const GET = withTenantContext(
  * Create a new task (admin only)
  */
 export const POST = withTenantContext(
-  async (request, { user, tenantId }) => {
+  async (request, { params }) => {
     try {
+      const { userId, tenantId, role } = requireTenantContext()
+
       // Only admins can create tasks
-      if (!user.isAdmin) {
+      if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
         return respond.forbidden('Only administrators can create tasks')
       }
 
@@ -154,9 +156,15 @@ export const POST = withTenantContext(
       // Create the task
       const task = await prisma.task.create({
         data: {
-          ...input,
-          tenantId,
-          createdById: user.id,
+          title: input.title,
+          description: input.description,
+          priority: input.priority,
+          dueAt: input.dueAt,
+          assigneeId: input.assigneeId,
+          complianceRequired: input.complianceRequired,
+          complianceDeadline: input.complianceDeadline,
+          tenantId: tenantId as string,
+          createdById: userId as string,
         },
         include: {
           assignee: {
@@ -175,11 +183,10 @@ export const POST = withTenantContext(
       // Log audit event
       await logAudit({
         tenantId,
-        userId: user.id,
+        actorId: userId,
         action: 'TASK_CREATED',
-        entity: 'Task',
-        entityId: task.id,
-        changes: {
+        targetId: task.id,
+        details: {
           title: task.title,
           priority: task.priority,
           assigneeId: task.assigneeId,

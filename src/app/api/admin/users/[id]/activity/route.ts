@@ -26,7 +26,7 @@ export const GET = withAdminAuth(
 
       // Verify user exists and belongs to tenant
       const userExists = await prisma.user.findFirst({
-        where: { id, tenantId },
+        where: { id, tenantId: tenantId as string },
       })
 
       if (!userExists) {
@@ -48,10 +48,8 @@ export const GET = withAdminAuth(
         select: {
           id: true,
           action: true,
-          entity: true,
-          entityId: true,
-          changes: true,
-          details: true,
+          resource: true,
+          metadata: true,
           createdAt: true,
         },
         orderBy: {

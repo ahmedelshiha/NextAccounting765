@@ -1,7 +1,8 @@
 'use server'
 
 import { NextRequest } from 'next/server'
-import { withTenantAuth, type AuthenticatedRequest } from '@/lib/auth-middleware'
+import { withTenantContext } from '@/lib/api-wrapper'
+import { requireTenantContext } from '@/lib/tenant-utils'
 import { respond } from '@/lib/api-response'
 import prisma from '@/lib/prisma'
 import { z } from 'zod'
@@ -10,18 +11,16 @@ import { z } from 'zod'
  * GET /api/documents/[id]
  * Get document details
  */
-export const GET = withTenantAuth(async (request, context) => {
+export const GET = withTenantContext(async (request: NextRequest, { params }: any) => {
   try {
-    const authReq = request as AuthenticatedRequest
-    const tenantId = authReq.tenantId
-    const userId = authReq.userId
-    const userRole = authReq.userRole
-    const params = (context as any)?.params || {}
+    const ctx = requireTenantContext()
+    const { tenantId, userId, role } = ctx
+    const userRole = role
 
     const document = await prisma.attachment.findFirst({
       where: {
         id: params.id,
-        tenantId,
+        tenantId: tenantId as string,
       },
       include: {
         uploader: {
@@ -120,9 +119,8 @@ export const GET = withTenantAuth(async (request, context) => {
         action: 'documents:view',
         userId,
         resource: 'Document',
-        resourceId: document.id,
       },
-    }).catch(() => {})
+    }).catch(() => { })
 
     return respond.ok({ data: baseData })
   } catch (error) {
@@ -135,18 +133,16 @@ export const GET = withTenantAuth(async (request, context) => {
  * PUT /api/documents/[id]
  * Update document metadata
  */
-export const PUT = withTenantAuth(async (request, context) => {
+export const PUT = withTenantContext(async (request: NextRequest, { params }: any) => {
   try {
-    const authReq = request as AuthenticatedRequest
-    const tenantId = authReq.tenantId
-    const userId = authReq.userId
-    const userRole = authReq.userRole
-    const params = (context as any)?.params || {}
+    const ctx = requireTenantContext()
+    const { tenantId, userId, role } = ctx
+    const userRole = role
 
     const document = await prisma.attachment.findFirst({
       where: {
         id: params.id,
-        tenantId,
+        tenantId: tenantId as string,
       },
     })
 
@@ -169,8 +165,11 @@ export const PUT = withTenantAuth(async (request, context) => {
     const updateData = UpdateSchema.parse(body)
 
     // Merge metadata
+    const currentMetadata = typeof document.metadata === 'object' && document.metadata !== null
+      ? document.metadata as Record<string, any>
+      : {}
     const newMetadata = updateData.metadata
-      ? { ...document.metadata, ...updateData.metadata }
+      ? { ...currentMetadata, ...updateData.metadata }
       : document.metadata
 
     const updated = await prisma.attachment.update({
@@ -198,10 +197,9 @@ export const PUT = withTenantAuth(async (request, context) => {
         action: 'documents:update',
         userId,
         resource: 'Document',
-        resourceId: document.id,
-        details: updateData,
+        metadata: updateData,
       },
-    }).catch(() => {})
+    }).catch(() => { })
 
     return respond.ok({
       data: {
@@ -229,18 +227,16 @@ export const PUT = withTenantAuth(async (request, context) => {
  * DELETE /api/documents/[id]
  * Delete document (soft delete for portal, hard delete for admin)
  */
-export const DELETE = withTenantAuth(async (request, context) => {
+export const DELETE = withTenantContext(async (request: NextRequest, { params }: any) => {
   try {
-    const authReq = request as AuthenticatedRequest
-    const tenantId = authReq.tenantId
-    const userId = authReq.userId
-    const userRole = authReq.userRole
-    const params = (context as any)?.params || {}
+    const ctx = requireTenantContext()
+    const { tenantId, userId, role } = ctx
+    const userRole = role
 
     const document = await prisma.attachment.findFirst({
       where: {
         id: params.id,
-        tenantId,
+        tenantId: tenantId as string,
       },
     })
 
@@ -260,13 +256,12 @@ export const DELETE = withTenantAuth(async (request, context) => {
         action: 'documents:delete',
         userId,
         resource: 'Document',
-        resourceId: document.id,
-        details: {
+        metadata: {
           documentName: document.name,
           documentSize: document.size,
         },
       },
-    }).catch(() => {})
+    }).catch(() => { })
 
     // Admin: hard delete, Portal user: soft delete (archive)
     if (userRole === 'ADMIN') {
@@ -284,13 +279,16 @@ export const DELETE = withTenantAuth(async (request, context) => {
       })
     } else {
       // Soft delete - mark as deleted in metadata
+      const currentMetadata = typeof document.metadata === 'object' && document.metadata !== null
+        ? document.metadata as Record<string, any>
+        : {}
       await prisma.attachment.update({
         where: { id: params.id },
         data: {
           metadata: {
-            ...document.metadata,
+            ...currentMetadata,
             deletedAt: new Date().toISOString(),
-            deletedBy: user.id,
+            deletedBy: userId,
           },
         },
       })
