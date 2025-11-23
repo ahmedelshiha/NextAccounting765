@@ -631,7 +631,8 @@ EXCEPTION
 END $$;
 
 -- CreateTable
-CREATE TABLE "notification_settings" (
+DO $$ BEGIN
+    CREATE TABLE "notification_settings" (
     "id" TEXT NOT NULL,
     "emailEnabled" BOOLEAN NOT NULL DEFAULT false,
     "emailFrom" TEXT,
@@ -641,10 +642,14 @@ CREATE TABLE "notification_settings" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "notification_settings_pkey" PRIMARY KEY ("id")
-);
+    );
+EXCEPTION
+    WHEN duplicate_table THEN null;
+END $$;
 
 -- CreateTable
-CREATE TABLE "services" (
+DO $$ BEGIN
+    CREATE TABLE "services" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
@@ -675,10 +680,14 @@ CREATE TABLE "services" (
     "blackoutDates" TIMESTAMP(3)[],
 
     CONSTRAINT "services_pkey" PRIMARY KEY ("id")
-);
+    );
+EXCEPTION
+    WHEN duplicate_table THEN null;
+END $$;
 
 -- CreateTable
-CREATE TABLE "service_views" (
+DO $$ BEGIN
+    CREATE TABLE "service_views" (
     "id" TEXT NOT NULL,
     "service_id" TEXT NOT NULL,
     "tenant_id" TEXT,
@@ -687,10 +696,14 @@ CREATE TABLE "service_views" (
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "service_views_pkey" PRIMARY KEY ("id")
-);
+    );
+EXCEPTION
+    WHEN duplicate_table THEN null;
+END $$;
 
 -- CreateTable
-CREATE TABLE "bookings" (
+DO $$ BEGIN
+    CREATE TABLE "bookings" (
     "id" TEXT NOT NULL,
     "clientId" TEXT NOT NULL,
     "serviceId" TEXT NOT NULL,
@@ -715,10 +728,14 @@ CREATE TABLE "bookings" (
     "rating" INTEGER,
 
     CONSTRAINT "bookings_pkey" PRIMARY KEY ("id")
-);
+    );
+EXCEPTION
+    WHEN duplicate_table THEN null;
+END $$;
 
 -- CreateTable
-CREATE TABLE "contact_submissions" (
+DO $$ BEGIN
+    CREATE TABLE "contact_submissions" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "email" TEXT NOT NULL,
@@ -731,10 +748,14 @@ CREATE TABLE "contact_submissions" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "contact_submissions_pkey" PRIMARY KEY ("id")
-);
+    );
+EXCEPTION
+    WHEN duplicate_table THEN null;
+END $$;
 
 -- CreateTable
-CREATE TABLE "HealthLog" (
+DO $$ BEGIN
+    CREATE TABLE "HealthLog" (
     "id" TEXT NOT NULL,
     "tenantId" TEXT NOT NULL,
     "service" TEXT NOT NULL,
@@ -743,10 +764,14 @@ CREATE TABLE "HealthLog" (
     "checkedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "HealthLog_pkey" PRIMARY KEY ("id")
-);
+    );
+EXCEPTION
+    WHEN duplicate_table THEN null;
+END $$;
 
 -- CreateTable
-CREATE TABLE "HealthThreshold" (
+DO $$ BEGIN
+    CREATE TABLE "HealthThreshold" (
     "id" SERIAL NOT NULL,
     "responseTime" INTEGER NOT NULL DEFAULT 100,
     "errorRate" DOUBLE PRECISION NOT NULL DEFAULT 1.0,
@@ -755,7 +780,10 @@ CREATE TABLE "HealthThreshold" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "HealthThreshold_pkey" PRIMARY KEY ("id")
-);
+    );
+EXCEPTION
+    WHEN duplicate_table THEN null;
+END $$;
 
 -- CreateTable
 CREATE TABLE "sidebar_preferences" (
