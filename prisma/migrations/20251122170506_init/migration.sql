@@ -1753,7 +1753,8 @@ EXCEPTION
 END $$;
 
 -- CreateTable
-CREATE TABLE "communication_settings" (
+DO $$ BEGIN
+    CREATE TABLE "communication_settings" (
     "id" TEXT NOT NULL,
     "tenantId" TEXT NOT NULL,
     "email" JSONB,
@@ -1766,10 +1767,14 @@ CREATE TABLE "communication_settings" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "communication_settings_pkey" PRIMARY KEY ("id")
-);
+    );
+EXCEPTION
+    WHEN duplicate_table THEN null;
+END $$;
 
 -- CreateTable
-CREATE TABLE "security_settings" (
+DO $$ BEGIN
+    CREATE TABLE "security_settings" (
     "id" TEXT NOT NULL,
     "tenantId" TEXT NOT NULL,
     "passwordPolicy" JSONB,
@@ -1783,10 +1788,14 @@ CREATE TABLE "security_settings" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "security_settings_pkey" PRIMARY KEY ("id")
-);
+    );
+EXCEPTION
+    WHEN duplicate_table THEN null;
+END $$;
 
 -- CreateTable
-CREATE TABLE "cron_telemetry_settings" (
+DO $$ BEGIN
+    CREATE TABLE "cron_telemetry_settings" (
     "id" TEXT NOT NULL,
     "tenantId" TEXT NOT NULL,
     "performance" JSONB,
@@ -1798,10 +1807,14 @@ CREATE TABLE "cron_telemetry_settings" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "cron_telemetry_settings_pkey" PRIMARY KEY ("id")
-);
+    );
+EXCEPTION
+    WHEN duplicate_table THEN null;
+END $$;
 
 -- CreateTable
-CREATE TABLE "org_localization_settings" (
+DO $$ BEGIN
+    CREATE TABLE "org_localization_settings" (
     "id" TEXT NOT NULL,
     "tenantId" TEXT NOT NULL,
     "defaultLanguage" VARCHAR(10) NOT NULL DEFAULT 'en',
@@ -1816,10 +1829,14 @@ CREATE TABLE "org_localization_settings" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "org_localization_settings_pkey" PRIMARY KEY ("id")
-);
+    );
+EXCEPTION
+    WHEN duplicate_table THEN null;
+END $$;
 
 -- CreateTable
-CREATE TABLE "regional_formats" (
+DO $$ BEGIN
+    CREATE TABLE "regional_formats" (
     "id" TEXT NOT NULL,
     "tenantId" TEXT NOT NULL,
     "languageCode" VARCHAR(10) NOT NULL,
@@ -1834,10 +1851,14 @@ CREATE TABLE "regional_formats" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "regional_formats_pkey" PRIMARY KEY ("id")
-);
+    );
+EXCEPTION
+    WHEN duplicate_table THEN null;
+END $$;
 
 -- CreateTable
-CREATE TABLE "crowdin_integrations" (
+DO $$ BEGIN
+    CREATE TABLE "crowdin_integrations" (
     "id" TEXT NOT NULL,
     "tenantId" TEXT NOT NULL,
     "projectId" VARCHAR(100) NOT NULL,
@@ -1853,7 +1874,10 @@ CREATE TABLE "crowdin_integrations" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "crowdin_integrations_pkey" PRIMARY KEY ("id")
-);
+    );
+EXCEPTION
+    WHEN duplicate_table THEN null;
+END $$;
 
 -- CreateTable
 CREATE TABLE "menu_customizations" (
