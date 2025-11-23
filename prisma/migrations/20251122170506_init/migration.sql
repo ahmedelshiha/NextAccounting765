@@ -1093,7 +1093,8 @@ EXCEPTION
 END $$;
 
 -- CreateTable
-CREATE TABLE "BookingPreferences" (
+DO $$ BEGIN
+    CREATE TABLE "BookingPreferences" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "emailConfirmation" BOOLEAN NOT NULL DEFAULT true,
@@ -1109,10 +1110,14 @@ CREATE TABLE "BookingPreferences" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "BookingPreferences_pkey" PRIMARY KEY ("id")
-);
+    );
+EXCEPTION
+    WHEN duplicate_table THEN null;
+END $$;
 
 -- CreateTable
-CREATE TABLE "ScheduledReminder" (
+DO $$ BEGIN
+    CREATE TABLE "ScheduledReminder" (
     "id" TEXT NOT NULL,
     "serviceRequestId" TEXT NOT NULL,
     "scheduledAt" TIMESTAMP(3) NOT NULL,
@@ -1122,10 +1127,14 @@ CREATE TABLE "ScheduledReminder" (
     "tenantId" TEXT NOT NULL,
 
     CONSTRAINT "ScheduledReminder_pkey" PRIMARY KEY ("id")
-);
+    );
+EXCEPTION
+    WHEN duplicate_table THEN null;
+END $$;
 
 -- CreateTable
-CREATE TABLE "Attachment" (
+DO $$ BEGIN
+    CREATE TABLE "Attachment" (
     "id" TEXT NOT NULL,
     "key" TEXT,
     "url" TEXT,
@@ -1147,10 +1156,14 @@ CREATE TABLE "Attachment" (
     "tenantId" TEXT NOT NULL,
 
     CONSTRAINT "Attachment_pkey" PRIMARY KEY ("id")
-);
+    );
+EXCEPTION
+    WHEN duplicate_table THEN null;
+END $$;
 
 -- CreateTable
-CREATE TABLE "DocumentVersion" (
+DO $$ BEGIN
+    CREATE TABLE "DocumentVersion" (
     "id" TEXT NOT NULL,
     "attachmentId" TEXT NOT NULL,
     "versionNumber" INTEGER NOT NULL,
@@ -1166,10 +1179,14 @@ CREATE TABLE "DocumentVersion" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "DocumentVersion_pkey" PRIMARY KEY ("id")
-);
+    );
+EXCEPTION
+    WHEN duplicate_table THEN null;
+END $$;
 
 -- CreateTable
-CREATE TABLE "DocumentLink" (
+DO $$ BEGIN
+    CREATE TABLE "DocumentLink" (
     "id" TEXT NOT NULL,
     "attachmentId" TEXT NOT NULL,
     "linkedToType" TEXT NOT NULL,
@@ -1179,10 +1196,14 @@ CREATE TABLE "DocumentLink" (
     "tenantId" TEXT NOT NULL,
 
     CONSTRAINT "DocumentLink_pkey" PRIMARY KEY ("id")
-);
+    );
+EXCEPTION
+    WHEN duplicate_table THEN null;
+END $$;
 
 -- CreateTable
-CREATE TABLE "DocumentAuditLog" (
+DO $$ BEGIN
+    CREATE TABLE "DocumentAuditLog" (
     "id" TEXT NOT NULL,
     "attachmentId" TEXT NOT NULL,
     "action" TEXT NOT NULL,
@@ -1194,10 +1215,14 @@ CREATE TABLE "DocumentAuditLog" (
     "tenantId" TEXT NOT NULL,
 
     CONSTRAINT "DocumentAuditLog_pkey" PRIMARY KEY ("id")
-);
+    );
+EXCEPTION
+    WHEN duplicate_table THEN null;
+END $$;
 
 -- CreateTable
-CREATE TABLE "WorkOrder" (
+DO $$ BEGIN
+    CREATE TABLE "WorkOrder" (
     "id" TEXT NOT NULL,
     "tenantId" TEXT NOT NULL,
     "title" TEXT NOT NULL,
@@ -1222,7 +1247,10 @@ CREATE TABLE "WorkOrder" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "WorkOrder_pkey" PRIMARY KEY ("id")
-);
+    );
+EXCEPTION
+    WHEN duplicate_table THEN null;
+END $$;
 
 -- CreateTable
 CREATE TABLE "booking_settings" (
